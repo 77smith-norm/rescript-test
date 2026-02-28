@@ -1,5 +1,24 @@
 type cell = Alive | Dead
 
+type rule = {
+  birth: array<int>,
+  survival: array<int>,
+}
+
+let make_rule = (birth: array<int>, survival: array<int>): rule =>
+  {birth, survival}
+
+let rule_has_birth = (rule: rule, n: int): bool =>
+  Belt.Array.some(rule.birth, x => x == n)
+
+let rule_has_survival = (rule: rule, n: int): bool =>
+  Belt.Array.some(rule.survival, x => x == n)
+
+let conway: rule = make_rule([3], [2, 3])
+let highlife: rule = make_rule([3, 6], [2, 3])
+let maze: rule = make_rule([3], [1, 2, 3, 4, 5])
+let dayAndNight: rule = make_rule([3, 6, 7, 8], [3, 4, 6, 7, 8])
+
 // 1D flat array: grid[r * cols + c]
 let make_grid = (rows: int, cols: int): array<cell> =>
   Belt.Array.make(rows * cols, Dead)
@@ -44,6 +63,29 @@ let compute_next_gen = (grid, rows, cols) => {
       let new_cell = switch get_cell(grid, cols, r.contents, c.contents) {
         | Alive => if n < 2 || n > 3 { Dead } else { Alive }
         | Dead  => if n == 3 { Alive } else { Dead }
+      }
+      set_cell(next, cols, r.contents, c.contents, new_cell)
+      c.contents = c.contents + 1
+    }
+    r.contents = r.contents + 1
+  }
+  next
+}
+
+let compute_next_gen_rule = (grid, rows, cols, rule: rule) => {
+  let next = make_grid(rows, cols)
+  let r = ref(0)
+  while r.contents < rows {
+    let c = ref(0)
+    while c.contents < cols {
+      let n = count_live_neighbors(grid, rows, cols, r.contents, c.contents)
+      let new_cell = switch get_cell(grid, cols, r.contents, c.contents) {
+        | Alive =>
+          if rule_has_survival(rule, n) { Alive }
+          else { Dead }
+        | Dead  =>
+          if rule_has_birth(rule, n) { Alive }
+          else { Dead }
       }
       set_cell(next, cols, r.contents, c.contents, new_cell)
       c.contents = c.contents + 1
@@ -155,6 +197,7 @@ type action =
   | ToggleCell(int, int)
   | LoadPreset(preset)
   | LoadCustomPreset(array<cell>)
+  | SetRule(rule)
 
 type state = {
   grid: array<cell>,
@@ -163,6 +206,7 @@ type state = {
   running: bool,
   speed: int,
   generation: int,
+  rule: rule,
 }
 
 let reducer = (state, action) =>
@@ -181,6 +225,7 @@ let reducer = (state, action) =>
     {...state, grid: load_preset(p, state.rows, state.cols), running: false, generation: 0}
   | LoadCustomPreset(cells) =>
     {...state, grid: cells, running: false, generation: 0}
+  | SetRule(r) => {...state, rule: r}
   }
 
 let rows = 20
@@ -193,4 +238,5 @@ let initial_state = {
   running: false,
   speed: 100,
   generation: 0,
+  rule: conway,
 }

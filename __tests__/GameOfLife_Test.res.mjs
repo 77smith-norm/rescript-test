@@ -364,4 +364,112 @@ Vitest.describe("deserialize_grid", undefined, undefined, undefined, undefined, 
   });
 });
 
+Vitest.describe("rule type and presets", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("rule type exists with birth and survival arrays", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    t.expect(GameOfLife.conway.birth.length).toBe(1);
+    t.expect(GameOfLife.conway.survival.length).toBe(2);
+  });
+  Vitest.test("conway rule is B3/S23", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.conway, 3)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.conway, 2)).toBe(false);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.conway, 2)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.conway, 3)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.conway, 1)).toBe(false);
+  });
+  Vitest.test("highlife rule is B36/S23", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.highlife, 3)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.highlife, 6)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.highlife, 2)).toBe(false);
+  });
+  Vitest.test("maze rule is B3/S12345", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.maze, 3)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.maze, 2)).toBe(false);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.maze, 1)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.maze, 2)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.maze, 3)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.maze, 4)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.maze, 5)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.maze, 6)).toBe(false);
+  });
+  Vitest.test("dayAndNight rule is B3678/S34678", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.dayAndNight, 3)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.dayAndNight, 6)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.dayAndNight, 7)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.dayAndNight, 8)).toBe(true);
+    t.expect(GameOfLife.rule_has_birth(GameOfLife.dayAndNight, 2)).toBe(false);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.dayAndNight, 3)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.dayAndNight, 4)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.dayAndNight, 6)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.dayAndNight, 7)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.dayAndNight, 8)).toBe(true);
+    t.expect(GameOfLife.rule_has_survival(GameOfLife.dayAndNight, 2)).toBe(false);
+  });
+});
+
+Vitest.describe("compute_next_gen with rule parameter", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("compute_next_gen accepts rule parameter", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 2, 2, "Alive");
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, GameOfLife.conway);
+    t.expect(GameOfLife.get_cell(next, 5, 2, 2)).toBe("Dead");
+  });
+  Vitest.test("conway rule produces same result as original hardcoded function", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(7, 7);
+    GameOfLife.set_cell(grid, 7, 3, 2, "Alive");
+    GameOfLife.set_cell(grid, 7, 3, 3, "Alive");
+    GameOfLife.set_cell(grid, 7, 3, 4, "Alive");
+    let next_old = GameOfLife.compute_next_gen(grid, 7, 7);
+    let next_new = GameOfLife.compute_next_gen_rule(grid, 7, 7, GameOfLife.conway);
+    t.expect(GameOfLife.count_alive(next_new)).toBe(GameOfLife.count_alive(next_old));
+    t.expect(GameOfLife.get_cell(next_new, 7, 2, 3)).toBe(GameOfLife.get_cell(next_old, 7, 2, 3));
+    t.expect(GameOfLife.get_cell(next_new, 7, 4, 3)).toBe(GameOfLife.get_cell(next_old, 7, 4, 3));
+  });
+  Vitest.test("highlife: dead cell with 6 neighbors becomes alive (B36)", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 1, 1, "Alive");
+    GameOfLife.set_cell(grid, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 1, 3, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 1, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 3, "Alive");
+    GameOfLife.set_cell(grid, 5, 3, 2, "Alive");
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, GameOfLife.highlife);
+    t.expect(GameOfLife.get_cell(next, 5, 2, 2)).toBe("Alive");
+    let next_conway = GameOfLife.compute_next_gen_rule(grid, 5, 5, GameOfLife.conway);
+    t.expect(GameOfLife.get_cell(next_conway, 5, 2, 2)).toBe("Dead");
+  });
+  Vitest.test("rule without B3: dead cell with 3 neighbors stays dead", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 1, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 3, "Alive");
+    let noB3 = GameOfLife.make_rule([2], [
+      2,
+      3
+    ]);
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, noB3);
+    t.expect(GameOfLife.get_cell(next, 5, 2, 2)).toBe("Dead");
+    let grid2 = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid2, 5, 2, 1, "Alive");
+    GameOfLife.set_cell(grid2, 5, 2, 3, "Alive");
+    let next2 = GameOfLife.compute_next_gen_rule(grid2, 5, 5, noB3);
+    t.expect(GameOfLife.get_cell(next2, 5, 2, 2)).toBe("Alive");
+  });
+  Vitest.test("rule without S2: live cell with 2 neighbors dies", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let noS2 = GameOfLife.make_rule([3], [3]);
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 2, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 3, 2, "Alive");
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, noS2);
+    t.expect(GameOfLife.get_cell(next, 5, 2, 2)).toBe("Dead");
+    let grid3 = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid3, 5, 2, 2, "Alive");
+    GameOfLife.set_cell(grid3, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid3, 5, 3, 2, "Alive");
+    GameOfLife.set_cell(grid3, 5, 2, 1, "Alive");
+    let next3 = GameOfLife.compute_next_gen_rule(grid3, 5, 5, noS2);
+    t.expect(GameOfLife.get_cell(next3, 5, 2, 2)).toBe("Alive");
+  });
+});
+
 /*  Not a pure module */

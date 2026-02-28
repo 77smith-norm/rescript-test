@@ -95,6 +95,14 @@ let make = () => {
 
   let liveCount = GameOfLife.count_alive(state.grid)
 
+  let ruleLabel = switch state.rule {
+    | _ if state.rule == GameOfLife.conway => "Conway (B3/S23)"
+    | _ if state.rule == GameOfLife.highlife => "HighLife (B36/S23)"
+    | _ if state.rule == GameOfLife.maze => "Maze (B3/S12345)"
+    | _ if state.rule == GameOfLife.dayAndNight => "Day & Night (B3678/S34678)"
+    | _ => "Custom"
+  }
+
   let handleSpeedChange = (e: ReactEvent.Form.t) => {
     let value: string = ReactEvent.Form.target(e)["value"]
     switch Int.fromString(value) {
@@ -159,12 +167,41 @@ let make = () => {
         {React.string("R-Pentomino")}
       </button>
     </div>
+    <div className="flex flex-wrap gap-2 mb-4 justify-center">
+      <button
+        onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.conway))}
+        className={if state.rule == GameOfLife.conway { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+      >
+        {React.string("Conway")}
+      </button>
+      <button
+        onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.highlife))}
+        className={if state.rule == GameOfLife.highlife { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+      >
+        {React.string("HighLife")}
+      </button>
+      <button
+        onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.maze))}
+        className={if state.rule == GameOfLife.maze { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+      >
+        {React.string("Maze")}
+      </button>
+      <button
+        onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.dayAndNight))}
+        className={if state.rule == GameOfLife.dayAndNight { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+      >
+        {React.string("Day & Night")}
+      </button>
+    </div>
     <div className="flex gap-6 mb-3 text-sm font-mono">
       <span className="text-slate-400">
         {React.string("Gen: " ++ Int.toString(state.generation))}
       </span>
       <span className="text-slate-400">
         {React.string("Live: " ++ Int.toString(liveCount))}
+      </span>
+      <span className="text-slate-400">
+        {React.string("Rule: " ++ ruleLabel)}
       </span>
     </div>
     <div className="flex flex-col items-center gap-4 mb-6">

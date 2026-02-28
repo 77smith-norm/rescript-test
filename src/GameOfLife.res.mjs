@@ -4,6 +4,83 @@ import * as Belt_Array from "@rescript/runtime/lib/es6/Belt_Array.js";
 import * as Stdlib_Array from "@rescript/runtime/lib/es6/Stdlib_Array.js";
 import * as Primitive_int from "@rescript/runtime/lib/es6/Primitive_int.js";
 
+function make_rule(birth, survival) {
+  return {
+    birth: birth,
+    survival: survival
+  };
+}
+
+function rule_has_birth(rule, n) {
+  return Belt_Array.some(rule.birth, x => x === n);
+}
+
+function rule_has_survival(rule, n) {
+  return Belt_Array.some(rule.survival, x => x === n);
+}
+
+let conway_birth = [3];
+
+let conway_survival = [
+  2,
+  3
+];
+
+let conway = {
+  birth: conway_birth,
+  survival: conway_survival
+};
+
+let highlife_birth = [
+  3,
+  6
+];
+
+let highlife_survival = [
+  2,
+  3
+];
+
+let highlife = {
+  birth: highlife_birth,
+  survival: highlife_survival
+};
+
+let maze_birth = [3];
+
+let maze_survival = [
+  1,
+  2,
+  3,
+  4,
+  5
+];
+
+let maze = {
+  birth: maze_birth,
+  survival: maze_survival
+};
+
+let dayAndNight_birth = [
+  3,
+  6,
+  7,
+  8
+];
+
+let dayAndNight_survival = [
+  3,
+  4,
+  6,
+  7,
+  8
+];
+
+let dayAndNight = {
+  birth: dayAndNight_birth,
+  survival: dayAndNight_survival
+};
+
 function make_grid(rows, cols) {
   return Belt_Array.make(rows * cols | 0, "Dead");
 }
@@ -54,6 +131,28 @@ function compute_next_gen(grid, rows, cols) {
           n < 2 || n > 3 ? "Dead" : "Alive"
         ) : (
           n === 3 ? "Alive" : "Dead"
+        );
+      set_cell(next, cols, r, c, new_cell);
+      c = c + 1 | 0;
+    };
+    r = r + 1 | 0;
+  };
+  return next;
+}
+
+function compute_next_gen_rule(grid, rows, cols, rule) {
+  let next = make_grid(rows, cols);
+  let r = 0;
+  while (r < rows) {
+    let c = 0;
+    while (c < cols) {
+      let n = count_live_neighbors(grid, rows, cols, r, c);
+      let match = get_cell(grid, cols, r, c);
+      let new_cell;
+      new_cell = match === "Alive" ? (
+          rule_has_survival(rule, n) ? "Alive" : "Dead"
+        ) : (
+          rule_has_birth(rule, n) ? "Alive" : "Dead"
         );
       set_cell(next, cols, r, c, new_cell);
       c = c + 1 | 0;
@@ -420,7 +519,8 @@ function reducer(state, action) {
           cols: state.cols,
           running: !state.running,
           speed: state.speed,
-          generation: state.generation
+          generation: state.generation,
+          rule: state.rule
         };
       case "Step" :
         return {
@@ -429,7 +529,8 @@ function reducer(state, action) {
           cols: state.cols,
           running: state.running,
           speed: state.speed,
-          generation: state.generation + 1 | 0
+          generation: state.generation + 1 | 0,
+          rule: state.rule
         };
       case "Clear" :
         return {
@@ -438,7 +539,8 @@ function reducer(state, action) {
           cols: state.cols,
           running: false,
           speed: state.speed,
-          generation: 0
+          generation: 0,
+          rule: state.rule
         };
       case "Randomize" :
         return {
@@ -447,7 +549,8 @@ function reducer(state, action) {
           cols: state.cols,
           running: state.running,
           speed: state.speed,
-          generation: 0
+          generation: 0,
+          rule: state.rule
         };
     }
   } else {
@@ -459,7 +562,8 @@ function reducer(state, action) {
           cols: state.cols,
           running: state.running,
           speed: action._0,
-          generation: state.generation
+          generation: state.generation,
+          rule: state.rule
         };
       case "ToggleCell" :
         let c = action._1;
@@ -475,7 +579,8 @@ function reducer(state, action) {
           cols: state.cols,
           running: state.running,
           speed: state.speed,
-          generation: state.generation
+          generation: state.generation,
+          rule: state.rule
         };
       case "LoadPreset" :
         return {
@@ -484,7 +589,8 @@ function reducer(state, action) {
           cols: state.cols,
           running: false,
           speed: state.speed,
-          generation: 0
+          generation: 0,
+          rule: state.rule
         };
       case "LoadCustomPreset" :
         return {
@@ -493,7 +599,18 @@ function reducer(state, action) {
           cols: state.cols,
           running: false,
           speed: state.speed,
-          generation: 0
+          generation: 0,
+          rule: state.rule
+        };
+      case "SetRule" :
+        return {
+          grid: state.grid,
+          rows: state.rows,
+          cols: state.cols,
+          running: state.running,
+          speed: state.speed,
+          generation: state.generation,
+          rule: action._0
         };
     }
   }
@@ -507,7 +624,8 @@ let initial_state = {
   cols: 40,
   running: false,
   speed: 100,
-  generation: 0
+  generation: 0,
+  rule: conway
 };
 
 let rows = 20;
@@ -515,11 +633,19 @@ let rows = 20;
 let cols = 40;
 
 export {
+  make_rule,
+  rule_has_birth,
+  rule_has_survival,
+  conway,
+  highlife,
+  maze,
+  dayAndNight,
   make_grid,
   get_cell,
   set_cell,
   count_live_neighbors,
   compute_next_gen,
+  compute_next_gen_rule,
   load_preset,
   random_state,
   next_rand,

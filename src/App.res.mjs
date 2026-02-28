@@ -5,6 +5,7 @@ import * as GameOfLife from "./GameOfLife.res.mjs";
 import * as Stdlib_Int from "@rescript/runtime/lib/es6/Stdlib_Int.js";
 import * as Stdlib_Array from "@rescript/runtime/lib/es6/Stdlib_Array.js";
 import * as Primitive_int from "@rescript/runtime/lib/es6/Primitive_int.js";
+import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
 import * as JsxRuntime from "react/jsx-runtime";
 
 function computeCellSize(cols) {
@@ -115,6 +116,13 @@ function App(props) {
     className: "flex"
   }, r.toString()));
   let liveCount = GameOfLife.count_alive(state.grid);
+  let ruleLabel = Primitive_object.equal(state.rule, GameOfLife.conway) ? "Conway (B3/S23)" : (
+      Primitive_object.equal(state.rule, GameOfLife.highlife) ? "HighLife (B36/S23)" : (
+          Primitive_object.equal(state.rule, GameOfLife.maze) ? "Maze (B3/S12345)" : (
+              Primitive_object.equal(state.rule, GameOfLife.dayAndNight) ? "Day & Night (B3678/S34678)" : "Custom"
+            )
+        )
+    );
   let handleSpeedChange = e => {
     let value = e.target.value;
     let speed = Stdlib_Int.fromString(value, undefined);
@@ -195,12 +203,53 @@ function App(props) {
       }),
       JsxRuntime.jsxs("div", {
         children: [
+          JsxRuntime.jsx("button", {
+            children: "Conway",
+            className: Primitive_object.equal(state.rule, GameOfLife.conway) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "SetRule",
+              _0: GameOfLife.conway
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "HighLife",
+            className: Primitive_object.equal(state.rule, GameOfLife.highlife) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "SetRule",
+              _0: GameOfLife.highlife
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "Maze",
+            className: Primitive_object.equal(state.rule, GameOfLife.maze) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "SetRule",
+              _0: GameOfLife.maze
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "Day & Night",
+            className: Primitive_object.equal(state.rule, GameOfLife.dayAndNight) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "SetRule",
+              _0: GameOfLife.dayAndNight
+            })
+          })
+        ],
+        className: "flex flex-wrap gap-2 mb-4 justify-center"
+      }),
+      JsxRuntime.jsxs("div", {
+        children: [
           JsxRuntime.jsx("span", {
             children: "Gen: " + state.generation.toString(),
             className: "text-slate-400"
           }),
           JsxRuntime.jsx("span", {
             children: "Live: " + liveCount.toString(),
+            className: "text-slate-400"
+          }),
+          JsxRuntime.jsx("span", {
+            children: "Rule: " + ruleLabel,
             className: "text-slate-400"
           })
         ],
