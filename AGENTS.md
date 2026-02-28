@@ -1,81 +1,171 @@
-# Conway's Game of Life — Project Context
+# AGENTS.md — Conway's Game of Life (ReScript v12)
 
 ## Project Overview
 
-Build a Conway's Game of Life implementation in ReScript v12. This is a learning project to explore ReScript syntax and compare local LLM coding agents (OpenCode with Qwen3.5-35B) against cloud agents (Codex, Claude).
+Conway's Game of Life in ReScript v12 + React + Vite + Tailwind CSS v4. This is a harness engineering experiment comparing local LLM agents (OpenCode/Qwen3.5-35B on crosby) against cloud agents. The app is deployed to GitHub Pages.
+
+**Live URL:** https://77smith-norm.github.io/rescript-test/
 
 ## Tech Stack
 
 - **Language:** ReScript v12
-- **Build:** Vite + ReScript compiler
-- **Rendering:** HTML5 Canvas or DOM-based
-- **State:** Game grid stored as 2D array
+- **UI:** React 19 + JSX v4
+- **Build:** Vite v7 + ReScript compiler (`rescript` CLI)
+- **Styling:** Tailwind CSS v4
+- **Package manager:** pnpm
+- **Deploy:** GitHub Pages via GitHub Actions
 
 ## Project Location
 
 `/Users/norm/Developer/rescript-test/`
 
-## Project Goals
+## Current State (as of 2026-02-28)
 
-1. Implement classic Conway's Game of Life rules:
-   - Any live cell with 2 or 3 neighbors survives
-   - Any dead cell with exactly 3 neighbors becomes alive
-   - All other live cells die, all other dead cells stay dead
+✅ **Complete and deployed:**
+- Flat 1D array grid (20 rows × 40 cols)
+- Conway's Game of Life rules
+- Div-based grid renderer with click-to-toggle
+- Controls: Play/Pause, Step, Clear, Randomize
+- Speed slider
+- Pattern presets: Glider, Blinker, Pulsar, R-Pentomino
+- Responsive design (dynamic cell size from window.innerWidth)
 
-2. Render the grid visually (canvas or DOM)
+## Build & Test
 
-3. Support controls: Start, Stop, Reset, Step
+```bash
+# Compile ReScript
+npx rescript
 
-4. Make it interactive: Click cells to toggle state
+# Run dev server
+npm run dev
 
-## Current Status
+# Production build (Vite)
+npm run build
+```
 
-- Project scaffolded with Vite + ReScript template
-- Initial compilation attempted but had syntax errors
-- Agent was working through fixing ReScript v12 syntax issues
+**Always run `npx rescript` after any `.res` file change and fix all errors before moving on.**
 
-## Known Issues / Blockers
+## Project Structure
 
-1. **ReScript v12 Syntax:** The agent struggled with:
-   - Using deprecated ref syntax (`!count`, `count :=`)
-   - Attempting JS-style `for` loops (not valid in ReScript)
-   - Array.create syntax conflicts with JSX
-   - Variant constructor usage
-
-2. **M3 Max MacBook Pro:** May have gone to sleep during agent run. Verify it's awake before spawning new agents.
+```
+src/
+  GameOfLife.res     — Game logic: cell types, grid ops, reducer, presets
+  App.res            — Main React component: layout, grid renderer, controls
+  Button.res         — Reusable button component
+  Main.res           — Entry point
+.agents/skills/
+  rescript-12/SKILL.md  — MUST READ before writing any ReScript
+.github/workflows/
+  deploy.yml         — GitHub Actions: rescript build → vite build → Pages deploy
+```
 
 ## Skill Reference
 
-**ALWAYS load and follow** the `rescript-12` skill before writing any ReScript code:
+**ALWAYS read `.agents/skills/rescript-12/SKILL.md` before writing any ReScript.**
 
+It documents critical v12 syntax rules, JSX patterns, and every trap that has caused compile failures in this project. Reading it first has been proven to prevent repeat mistakes.
+
+## Off-Limits
+
+- Do NOT modify `Button.res`, `Main.res`, or `rescript.json`
+- Do NOT change the grid dimensions (rows=20, cols=40 defined in `GameOfLife.res`)
+- Do NOT remove or change existing actions/reducer cases
+- Do NOT install new npm packages without checking first
+
+## Known Issues — Read Before Writing Code
+
+These are real failures from previous agent runs. Don't repeat them.
+
+### 1. `@rescript/runtime` must be in package.json
+
+ReScript v12 compiled output imports from `@rescript/runtime`. pnpm nests it as a transitive dep of `rescript`, but Vite/Rollup cannot resolve it on CI unless it is listed **explicitly** in `package.json` dependencies.
+
+**It is already added. Do not remove it.**
+
+```json
+"@rescript/runtime": "12.2.0"
 ```
-.agents/skills/rescript-12/SKILL.md
+
+### 2. Do NOT hardcode viewport widths
+
+When writing responsive layout code, read the actual viewport:
+
+```res
+@val external windowInnerWidth: int = "window.innerWidth"
 ```
 
-This skill documents:
-- Correct ref usage (`.contents`)
-- Loop alternatives (while, forEach, reduce)
-- v12 migration changes
-- Common syntax traps
-
-## Agent Commands
-
-To build the project:
-```bash
-cd /Users/norm/Developer/rescript-test
-rescript watch
+**WRONG — hardcodes iPhone width, breaks on every other device:**
+```res
+let maxWidth = 390 - 32  // ← never do this
 ```
 
-To run the dev server:
-```bash
-npm run dev
+**CORRECT:**
+```res
+let available = windowInnerWidth - 32
+let cellSize = if available / cols > 15 { 15 } else { available / cols }
 ```
 
-## What Success Looks Like
+### 3. Do NOT touch existing useEffect hooks unless asked
 
-1. The game renders in the browser
-2. Cells evolve according to Conway's rules
-3. Controls work (start/stop/reset/step)
-4. Clicking cells toggles their state
-5. Code compiles without errors
-6. Project runs with `npm run dev`
+When adding new effects (e.g. a resize listener), add a separate `useEffect0`. Do NOT modify the existing animation `useEffect2` — it controls the game loop and breaking it stops the simulation.
+
+**WRONG — agent replaced the animation effect with a fake one:**
+```res
+// Previous agent replaced the real animation loop with this:
+let _ = setInterval(() => (), 1000)  // ← useless, breaks Play/Pause
+Some(() => ())
+```
+
+**CORRECT pattern for adding a resize listener:**
+```res
+// Keep the existing animation effect untouched:
+React.useEffect2(() => {
+  if state.running {
+    let id = setInterval(() => dispatch(GameOfLife.Step), state.speed)
+    Some(() => clearInterval(id))
+  } else {
+    None
+  }
+}, (state.running, state.speed))
+
+// Add resize listener as a separate useEffect0:
+React.useEffect0(() => {
+  let handler = () => setCellSize(_ => computeCellSize(GameOfLife.cols))
+  addEventListener("resize", handler)
+  Some(() => removeEventListener("resize", handler))
+})
+```
+
+### 4. Externals for browser APIs
+
+To access browser globals in ReScript, declare them as externals:
+
+```res
+@val external windowInnerWidth: int = "window.innerWidth"
+@val external addEventListener: (string, unit => unit) => unit = "window.addEventListener"
+@val external removeEventListener: (string, unit => unit) => unit = "window.removeEventListener"
+```
+
+Do NOT try to access `window.innerWidth` as plain ReScript — it won't compile.
+
+### 5. ReScript JSX and syntax traps (summary — full details in rescript-12 skill)
+
+- `type_="range"` not `type="range"` — `type` is a reserved keyword
+- `{React.string("Speed:")}` not `>Speed:</` — bare text with `:` breaks the parser
+- Inline style is a record: `style={{width: "600px"}}` not `{"width": 600}`
+- `Array.fromInitializer(~length=n, i => ...)` — `List.range` does not exist
+- Wrap JSX array output in `React.array(...)`
+- `ReactEvent.Form.target(e)["value"]` — `ReactEvent.FormTarget` does not exist
+
+## GitHub Actions Deploy
+
+The workflow at `.github/workflows/deploy.yml` runs on every push to `main`:
+
+1. `pnpm install` — installs all deps including `@rescript/runtime`
+2. `pnpm res:build` — compiles `.res` → `.res.mjs`
+3. `pnpm build` — Vite bundles `.res.mjs` + React → `dist/`
+4. Deploys `dist/` to GitHub Pages
+
+**To check a deploy:** `gh run list --repo 77smith-norm/rescript-test`
+**To read failure logs:** `gh run view <id> --log-failed`
+**Live site:** https://77smith-norm.github.io/rescript-test/
