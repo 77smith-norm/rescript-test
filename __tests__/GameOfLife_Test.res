@@ -780,3 +780,160 @@ describe("compute_age_color", () => {
     t->expect(String.length(c50))->Expect.not->Expect.toBe(0)
   })
 })
+
+// ── Option F: RLE Import / Export ─────────────────────────────────────────────
+// These tests define Option F: Run Length Encoding for Conway Life patterns.
+// They FAIL until encode_rle and decode_rle are implemented.
+// The existing 67 tests should still pass.
+
+describe("encode_rle", () => {
+  test("empty grid encodes to empty-ish string with header", t => {
+    let grid = GameOfLife.make_grid(3, 3)
+    let encoded = GameOfLife.encode_rle(grid, 3, 3)
+    // Should contain header with dimensions
+    t->expect(String.length(encoded))->Expect.not->Expect.toBe(0)
+    // Should mark all dead as 'b' runs or similar
+  })
+
+  test("single alive cell encodes correctly", t => {
+    let grid = GameOfLife.make_grid(3, 3)
+    GameOfLife.set_cell(grid, 3, 1, 1, GameOfLife.Alive)
+    let encoded = GameOfLife.encode_rle(grid, 3, 3)
+    // Should contain 'o' for alive
+    t->expect(String.includes(encoded, "o"))->Expect.toBe(true)
+  })
+
+  test("glider encodes to something with multiple 'o' marks", t => {
+    // Glider pattern at top-left: (0,1), (1,2), (2,0), (2,1), (2,2)
+    let grid = GameOfLife.make_grid(3, 3)
+    GameOfLife.set_cell(grid, 3, 0, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 2, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 2, 2, GameOfLife.Alive)
+    let encoded = GameOfLife.encode_rle(grid, 3, 3)
+    // Should have exactly 5 'o' marks (or compressed like 2o)
+    t->expect(String.length(encoded))->Expect.toBeGreaterThan(5)
+  })
+})
+
+describe("decode_rle", () => {
+  test("decodes empty grid (all b)", t => {
+    let result = GameOfLife.decode_rle("x = 3, y = 3, rule = B3/S23\nbbbob\nbbbob\nbbbob!")
+    switch result {
+    | None => t->fail->Expect.toBe(true)
+    | Some((grid, rows, cols)) =>
+      t->expect(rows)->Expect.toBe(3)
+      t->expect(cols)->Expect.toBe(3)
+      t->expect(GameOfLife.count_alive(grid))->Expect.toBe(0)
+    }
+  })
+
+  test("decodes single 'o' to single alive cell", t => {
+    // "x = 1, y = 1, rule = B3/S23\no!" = 1x1 grid with one alive cell
+    let result = GameOfLife.decode_rle("x = 1, y = 1, rule = B3/S23\no!")
+    switch result {
+    | None => t->fail->Expect.toBe(true)
+    | Some((grid, rows, cols)) =>
+      t->expect(GameOfLife.count_alive(grid))->Expect.toBe(1)
+      t->expect(GameOfLife.get_cell(grid, cols, 0, 0))->Expect.toBe(GameOfLife.Alive)
+    }
+  })
+
+  test("ignores header and rule line", t => {
+    // Both formats should work
+    let result1 = GameOfLife.decode_rle("x = 2, y = 1, rule = B3/S23\noo!")
+    let result2 = GameOfLife.decode_rle("x = 2, y = 1\noo!")
+    
+    switch (result1, result2) {
+    | (Some((g1, _, _)), Some((g2, _, _))) =>
+      t->expect(GameOfLife.count_alive(g1))->Expect.toBe(GameOfLife.count_alive(g2))
+    | _ => t->fail->Expect.toBe(true)
+    }
+  })
+
+  test("handles run-length compression (3o = ooo)", t => {
+    // "3o" should decode to three alive cells in a row
+    let result = GameOfLife.decode_rle("x = 3, y = 1\nooo!")
+    switch result {
+    | None => t->fail->Expect.toBe(true)
+    | Some((grid, rows, cols)) =>
+      t->expect(GameOfLife.count_alive(grid))->Expect.toBe(3)
+      t->expect(GameOfLife.get_cell(grid, 3, 0, 0))->Expect.toBe(GameOfLife.Alive)
+      t->expect(GameOfLife.get_cell(grid, 3, 0, 1))->Expect.toBe(GameOfLife.Alive)
+      t->expect(GameOfLife.get_cell(grid, 3, 0, 2))->Expect.toBe(GameOfLife.Alive)
+    }
+  })
+
+  test("handles $ as row separator", t => {
+    // 2x2 grid: top row alive, bottom row dead
+    let result = GameOfLife.decode_rle("x = 2, y = 2, rule = B3/S23\noo$\nbb!")
+    switch result {
+    | None => t->fail->Expect.toBe(true)
+    | Some((grid, rows, cols)) =>
+      t->expect(GameOfLife.count_alive(grid))->Expect.toBe(2)
+      // Row 0 (top): both alive
+      t->expect(GameOfLife.get_cell(grid, 2, 0, 0))->Expect.toBe(GameOfLife.Alive)
+      t->expect(GameOfLife.get_cell(grid, 2, 0, 1))->Expect.toBe(GameOfLife.Alive)
+      // Row 1 (bottom): both dead
+      t->expect(GameOfLife.get_cell(grid, 2, 1, 0))->Expect.toBe(GameOfLife.Dead)
+      t->expect(GameOfLife.get_cell(grid, 2, 1, 1))->Expect.toBe(GameOfLife.Dead)
+    }
+  })
+
+  test("returns None for invalid RLE", t => {
+    let result1 = GameOfLife.decode_rle("not valid rle at all")
+    t->expect(result1)->Expect.toBe(None)
+    
+    let result2 = GameOfLife.decode_rle("")  // empty
+    t->expect(result2)->Expect.toBe(None)
+  })
+})
+
+describe("RLE round-trip", () => {
+  test("encode then decode recovers original grid", t => {
+    let original = GameOfLife.make_grid(5, 5)
+    // Set some pattern
+    GameOfLife.set_cell(original, 5, 0, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 0, 4, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 4, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 4, 4, GameOfLife.Alive)
+    
+    let encoded = GameOfLife.encode_rle(original, 5, 5)
+    let decoded = GameOfLife.decode_rle(encoded)
+    
+    switch decoded {
+    | None => t->fail->Expect.toBe(true)
+    | Some((grid, rows, cols)) =>
+      // Count should match
+      t->expect(GameOfLife.count_alive(grid))->Expect.toBe(GameOfLife.count_alive(original))
+      // Each alive cell position should match
+      t->expect(GameOfLife.get_cell(grid, 5, 0, 0))->Expect.toBe(GameOfLife.get_cell(original, 5, 0, 0))
+      t->expect(GameOfLife.get_cell(grid, 5, 0, 4))->Expect.toBe(GameOfLife.get_cell(original, 5, 0, 4))
+      t->expect(GameOfLife.get_cell(grid, 5, 2, 2))->Expect.toBe(GameOfLife.get_cell(original, 5, 2, 2))
+      t->expect(GameOfLife.get_cell(grid, 5, 4, 0))->Expect.toBe(GameOfLife.get_cell(original, 5, 4, 0))
+      t->expect(GameOfLife.get_cell(grid, 5, 4, 4))->Expect.toBe(GameOfLife.get_cell(original, 5, 4, 4))
+    }
+  })
+
+  test("blinker round-trip preserves oscillation pattern", t => {
+    // Horizontal blinker: 3 in a row
+    let original = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(original, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 2, 3, GameOfLife.Alive)
+    
+    let encoded = GameOfLife.encode_rle(original, 5, 5)
+    let decoded = GameOfLife.decode_rle(encoded)
+    
+    switch decoded {
+    | None => t->fail->Expect.toBe(true)
+    | Some((grid, _, _)) =>
+      t->expect(GameOfLife.count_alive(grid))->Expect.toBe(3)
+      t->expect(GameOfLife.get_cell(grid, 5, 2, 1))->Expect.toBe(GameOfLife.Alive)
+      t->expect(GameOfLife.get_cell(grid, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
+      t->expect(GameOfLife.get_cell(grid, 5, 2, 3))->Expect.toBe(GameOfLife.Alive)
+    }
+  })
+})
