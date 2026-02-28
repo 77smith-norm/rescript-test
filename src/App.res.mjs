@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import * as GameOfLife from "./GameOfLife.res.mjs";
+import * as Stdlib_Int from "@rescript/runtime/lib/es6/Stdlib_Int.js";
+import * as Stdlib_Array from "@rescript/runtime/lib/es6/Stdlib_Array.js";
 import * as JsxRuntime from "react/jsx-runtime";
 
 function App(props) {
@@ -20,6 +22,32 @@ function App(props) {
     state.running,
     state.speed
   ]);
+  let gridWidth = state.cols * 15 | 0;
+  let gridHeight = state.rows * 15 | 0;
+  let renderGrid = () => Stdlib_Array.fromInitializer(state.rows, r => JsxRuntime.jsx("div", {
+    children: Stdlib_Array.fromInitializer(state.cols, c => {
+      let cell = GameOfLife.get_cell(state.grid, state.cols, r, c);
+      return JsxRuntime.jsx("div", {
+        className: cell === "Alive" ? "w-4 h-4 bg-white cursor-pointer" : "w-4 h-4 bg-slate-800 cursor-pointer",
+        onClick: param => dispatch({
+          TAG: "ToggleCell",
+          _0: r,
+          _1: c
+        })
+      }, c.toString());
+    }),
+    className: "flex"
+  }, r.toString()));
+  let handleSpeedChange = e => {
+    let value = e.target.value;
+    let speed = Stdlib_Int.fromString(value, undefined);
+    if (speed !== undefined) {
+      return dispatch({
+        TAG: "SetSpeed",
+        _0: 600 - (speed * 5 | 0) | 0
+      });
+    }
+  };
   return JsxRuntime.jsxs("div", {
     children: [
       JsxRuntime.jsx("h1", {
@@ -51,9 +79,37 @@ function App(props) {
         ],
         className: "flex gap-4 mb-6"
       }),
-      JsxRuntime.jsx("div", {
-        children: "Grid rendering: TODO",
-        className: "text-slate-400 text-sm"
+      JsxRuntime.jsxs("div", {
+        children: [
+          JsxRuntime.jsx("div", {
+            children: renderGrid(),
+            className: "border border-slate-700",
+            style: {
+              height: gridHeight.toString() + "px",
+              width: gridWidth.toString() + "px"
+            }
+          }),
+          JsxRuntime.jsxs("div", {
+            children: [
+              JsxRuntime.jsx("label", {
+                children: "Speed:",
+                className: "text-sm text-slate-400",
+                htmlFor: "speed-slider"
+              }),
+              JsxRuntime.jsx("input", {
+                defaultValue: "60",
+                className: "w-48 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer",
+                id: "speed-slider",
+                max: "120",
+                min: "0",
+                type: "range",
+                onChange: handleSpeedChange
+              })
+            ],
+            className: "flex items-center gap-2"
+          })
+        ],
+        className: "flex flex-col items-center gap-4 mb-6"
       })
     ],
     className: "min-h-screen bg-slate-900 text-white flex flex-col items-center p-8"
