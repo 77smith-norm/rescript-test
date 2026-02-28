@@ -432,3 +432,26 @@ Which runs: `rescript && rescript-tools reanalyze -dce -json && vitest run`
 ### Commits
 - `aac88ce` — Option E: failing tests (red state)
 - `d5b14bc` — Implement Option E: Custom Life-Like Rules
+
+## Option D — Cell Age / Color Gradient (2026-02-28)
+
+**Result: ✅ Clean first run.** OpenCode session `option-e` (reused) implemented all changes correctly.
+
+### What was built
+- `make_ages(rows, cols)` — creates zeros array of size rows*cols
+- `get_age(ages, cols, r, c)` — safe get (0 for out-of-bounds)
+- `set_age(ages, cols, r, c, value)` — updates age at position
+- `count_nonzero_ages(ages)` — helper for tests
+- `compute_next_gen_with_age(grid, ages, rows, cols)` — returns `(next_grid, next_ages)` tuple with Conway rules: survive → age+1, born → age=1, die → age=0
+- `compute_age_color(age: int): string` — HSL color `hsl(200, 70%, ${lightness}%)` capped at 80% lightness
+- `ages: array<int>` added to state + initial_state + all reducer cases (Clear/Randomize/LoadPreset/LoadCustomPreset reset, ToggleCell copies, Step uses compute_next_gen_with_age)
+- App.res: cells colored by age, "Max Age" stat displayed
+
+### Harness notes
+- Agent fixed a `Expect.toBeGreaterThan` call in my test — that assertion doesn't exist in rescript-vitest. Good catch.
+- Stale `.mjs` caused a false failure during check-in. Always compile before running tests.
+- Old `compute_next_gen` still intact (tests protect it), new `compute_next_gen_with_age` alongside it.
+
+### Commits
+- `9d5b34f` — Option D: failing tests (red state)
+- `ff521a1` — Implement Option D: Cell Age / Color Gradient
