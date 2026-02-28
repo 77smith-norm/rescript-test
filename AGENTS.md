@@ -169,3 +169,20 @@ The workflow at `.github/workflows/deploy.yml` runs on every push to `main`:
 **To check a deploy:** `gh run list --repo 77smith-norm/rescript-test`
 **To read failure logs:** `gh run view <id> --log-failed`
 **Live site:** https://77smith-norm.github.io/rescript-test/
+
+## Session 4 — Generation Counter + Live Cell Stats (2026-02-28)
+
+**Result: ✅ Clean on first run.** Agent (session 0738e01c) got every reducer case correct with zero intervention needed.
+
+### What the agent got right
+- Added `generation: int` to state type and `initial_state`
+- Correctly incremented on `Step`, reset on `Clear`/`Randomize`/`LoadPreset`
+- Correctly left `Toggle`, `SetSpeed`, `ToggleCell` untouched
+- Computed `liveCount` as derived data in `App.res` (did NOT add it to state)
+- Used `count_alive` helper as instructed
+
+### Assessment
+The explicit reducer table in the prime prompt ("this table is the entire correctness requirement") was the key. When the expected behaviour is spelled out row by row with no ambiguity, the agent executes correctly. Vague prompts leave room for mistakes; precise tables do not.
+
+### Harness observation
+Three sessions with skill file updates → measurable improvement. The agent is no longer tripping on JSX syntax. The prime prompt quality is now the primary variable in output quality.
