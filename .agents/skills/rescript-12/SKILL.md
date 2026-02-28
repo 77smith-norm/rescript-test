@@ -69,6 +69,51 @@ let arr2 = Belt.Array.make(10, 0)  // Also safe
 // AVOID labeled arguments that might conflict with JSX in the same file
 ```
 
+### Array Reading vs Writing — Critical!
+
+**READING** an array returns an option:
+```res
+let arr = Belt.Array.make(10, Dead)
+let val = arr[5]  // val has type: option<cell>
+// Must pattern match or use switch:
+switch arr[5] {
+| Some(cell) => ...
+| None => ...
+}
+```
+
+**WRITING** takes the raw value — do NOT wrap in `Some`:
+```res
+// WRONG - will cause type errors
+arr[5] = Some(Alive)
+
+// CORRECT - write raw value directly
+arr[5] = Alive
+```
+
+### Flat 1D Arrays for Grids (Recommended)
+
+When implementing 2D grids (like game boards), use a **flat 1D array** instead of nested arrays. This avoids option-wrapping issues from double indexing:
+
+```res
+// Instead of array<array<cell>> which causes grid[row][col] to return option<option<cell>>
+type cell = Alive | Dead
+
+// Flat 1D approach: index = r * cols + c
+let make_grid = (rows: int, cols: int): array<cell> =>
+  Belt.Array.make(rows * cols, Dead)
+
+let get_cell = (grid: array<cell>, cols: int, r: int, c: int): cell =>
+  switch grid[r * cols + c] {
+  | Some(cell) => cell
+  | None => Dead
+  }
+
+let set_cell = (grid: array<cell>, cols: int, r: int, c: int, val: cell): unit => {
+  let _ = Belt.Array.set(grid, r * cols + c, val)
+}
+```
+
 ### Unit Discarding
 
 When mutating inside expressions, you must discard the unit result:
@@ -123,6 +168,90 @@ while i.contents < 10 {
 }
 ```
 
+## React/JSX Patterns
+
+### JSX String Children
+
+**ALWAYS** wrap string children in `React.string()`:
+
+```res
+// WRONG - will not render
+<div>{"Hello World"}</div>
+
+// CORRECT
+<div>{React.string("Hello World")}</div>
+```
+
+### useEffect Return Types
+
+`React.useEffect0`, `React.useEffect1`, `React.useEffect2` expect specific return types:
+
+```res
+// useEffect2 expects: (unit => option<unit => unit>)
+React.useEffect2(() => {
+  if someCondition {
+    let id = Js.Global.setInterval(...)
+    Some(() => Js.Global.clearInterval(id))  // Return Some(cleanup)
+  } else {
+    None  // Must return None, not omitted
+  }
+}, (dep1, dep2))
+```
+
+### JSX Children Must Be Arrays
+
+JSX children expect `array<React.element>`, not `list`. Convert if needed:
+
+```res
+// Use Array.map, not List.map
+<div>
+  {Array.map(item => <span>{React.string(item)}</span>, items)}
+</div>
+```
+
+### Event Handlers
+
+```res
+// onChange handler pattern
+<select
+  onChange={e => {
+    let value = ReactEvent.FormTarget.value(e)
+    dispatch(MyAction(Int.fromString(value)))
+  }}>
+  ...
+</select>
+```
+
+Note: Use `Int.fromString` which returns `option<int>`, not `Int.of_string`.
+
+## Reducer Best Practices
+
+### Actions Should Not Mutate Unrelated State
+
+Be careful that actions don't accidentally change state you didn't intend:
+
+```res
+// WRONG - Step should NOT touch running state, or it breaks interval loops
+| Step =>
+  let new_grid = compute_next_gen(state.grid, ...)
+  {...state, grid: new_grid, running: false}  // This breaks the animation!
+
+// CORRECT - Step only advances the grid
+| Step =>
+  {...state, grid: compute_next_gen(state.grid, ...)}
+```
+
+### Use Separate Actions for Different Concerns
+
+Instead of one action doing multiple things, create separate actions:
+
+```res
+// Instead of having Step also update running state:
+| Step => compute_next_gen(...)
+| Toggle => toggle running
+| ToggleCell(r, c) => toggle specific cell
+```
+
 ## v12 Migration Quick Reference
 
 | Old (v11) | New (v12) |
@@ -144,6 +273,7 @@ while i.contents < 10 {
 | `assert 1 == 2` | `assert(1 == 2)` |
 | `rescript build` | `rescript` |
 | `rescript build -w` | `rescript watch` |
+| `Js.Global.setInterval` | `setInterval` (global) |
 
 ## Standard Library
 
@@ -199,6 +329,7 @@ When working with JSX, remember:
 2. **Attributes use ReScript syntax**: `className` not `class`, `onClick` not `onclick`
 3. **No `for` attribute**: use `htmlFor`
 4. **Inline styles**: pass a JS object, not a string
+5. **String children**: wrap in `React.string()`
 
 ```res
 <div onClick={_ => Console.log("clicked")} className="container">
@@ -224,6 +355,8 @@ rescript format
 1. **JSX parser collision**: If you see errors about `:` or `=`, check for JSX conflicts in your code
 2. **Unit expected**: You're likely using an expression that returns `unit` where a value is expected — add `let _ =` wrapper or separate statements
 3. **Unbound variant**: Make sure you've defined the type first: `type myType = Variant1 | Variant2`
+4. **"This has type X but expected Y" on array access**: Check if you're writing `Some(val)` to an array that should hold raw values
+5. **"Function takes X arguments but got Y" in useEffect**: Check that both branches return the same type (e.g., both return `None`, not one returning a value and one returning `None`)
 
 ## Project Structure
 
