@@ -437,3 +437,163 @@ describe("deserialize_grid", () => {
     t->expect(GameOfLife.get_cell(restored, 4, 3, 3))->Expect.toBe(GameOfLife.Dead)
   })
 })
+
+// ── Option E: Custom Life-Like Rules ───────────────────────────────────────────
+// These tests define Option E: parameterizing the ruleset.
+// They FAIL until compute_next_gen accepts a rule parameter.
+// The existing 43 tests should still pass with Conway passed explicitly.
+
+// Rule type exists and preset rules are accessible
+describe("rule type and presets", () => {
+  test("rule type exists with birth and survival arrays", t => {
+    let rule = GameOfLife.conway
+    t->expect(Array.length(rule.birth))->Expect.toBe(1)
+    t->expect(Array.length(rule.survival))->Expect.toBe(2)
+  })
+
+  test("conway rule is B3/S23", t => {
+    let rule = GameOfLife.conway
+    // Birth on 3
+    t->expect(GameOfLife.rule_has_birth(rule, 3))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 2))->Expect.toBe(false)
+    // Survival on 2, 3
+    t->expect(GameOfLife.rule_has_survival(rule, 2))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 3))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 1))->Expect.toBe(false)
+  })
+
+  test("highlife rule is B36/S23", t => {
+    let rule = GameOfLife.highlife
+    // Birth on 3 AND 6
+    t->expect(GameOfLife.rule_has_birth(rule, 3))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 6))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 2))->Expect.toBe(false)
+  })
+
+  test("maze rule is B3/S12345", t => {
+    let rule = GameOfLife.maze
+    // Birth on 3 only
+    t->expect(GameOfLife.rule_has_birth(rule, 3))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 2))->Expect.toBe(false)
+    // Survival on 1, 2, 3, 4, 5
+    t->expect(GameOfLife.rule_has_survival(rule, 1))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 2))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 3))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 4))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 5))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 6))->Expect.toBe(false)
+  })
+
+  test("dayAndNight rule is B3678/S34678", t => {
+    let rule = GameOfLife.dayAndNight
+    // Birth on 3, 6, 7, 8
+    t->expect(GameOfLife.rule_has_birth(rule, 3))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 6))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 7))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 8))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_birth(rule, 2))->Expect.toBe(false)
+    // Survival on 3, 4, 6, 7, 8
+    t->expect(GameOfLife.rule_has_survival(rule, 3))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 4))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 6))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 7))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 8))->Expect.toBe(true)
+    t->expect(GameOfLife.rule_has_survival(rule, 2))->Expect.toBe(false)
+  })
+})
+
+// compute_next_gen with explicit rule produces correct results
+describe("compute_next_gen with rule parameter", () => {
+  test("compute_next_gen accepts rule parameter", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    // Single alive cell with 0 neighbors should die under any rule
+    GameOfLife.set_cell(grid, 5, 2, 2, GameOfLife.Alive)
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, GameOfLife.conway)
+    t->expect(GameOfLife.get_cell(next, 5, 2, 2))->Expect.toBe(GameOfLife.Dead)
+  })
+
+  test("conway rule produces same result as original hardcoded function", t => {
+    // Use a blinker: horizontal row of 3
+    let grid = GameOfLife.make_grid(7, 7)
+    GameOfLife.set_cell(grid, 7, 3, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 7, 3, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 7, 3, 4, GameOfLife.Alive)
+    
+    // Old function (for comparison - should still work)
+    let next_old = GameOfLife.compute_next_gen(grid, 7, 7)
+    // New function with conway rule
+    let next_new = GameOfLife.compute_next_gen_rule(grid, 7, 7, GameOfLife.conway)
+    
+    // Should produce identical results
+    t->expect(GameOfLife.count_alive(next_new))->Expect.toBe(GameOfLife.count_alive(next_old))
+    t->expect(GameOfLife.get_cell(next_new, 7, 2, 3))->Expect.toBe(GameOfLife.get_cell(next_old, 7, 2, 3))
+    t->expect(GameOfLife.get_cell(next_new, 7, 4, 3))->Expect.toBe(GameOfLife.get_cell(next_old, 7, 4, 3))
+  })
+
+  test("highlife: dead cell with 6 neighbors becomes alive (B36)", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    // Dead cell at center (2,2) surrounded by 6 live cells
+    // Positions: (1,1), (1,2), (1,3), (2,1), (2,3), (3,2)
+    GameOfLife.set_cell(grid, 5, 1, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 1, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 3, 2, GameOfLife.Alive)
+    // (2,2) is dead with 6 neighbors
+    
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, GameOfLife.highlife)
+    // Under HighLife (B36), dead cell with 6 neighbors is born
+    t->expect(GameOfLife.get_cell(next, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
+    
+    // Under Conway (B3 only), it would stay dead
+    let next_conway = GameOfLife.compute_next_gen_rule(grid, 5, 5, GameOfLife.conway)
+    t->expect(GameOfLife.get_cell(next_conway, 5, 2, 2))->Expect.toBe(GameOfLife.Dead)
+  })
+
+  test("rule without B3: dead cell with 3 neighbors stays dead", t => {
+    // Create a custom rule without B3 (e.g., just B2)
+    let grid = GameOfLife.make_grid(5, 5)
+    // Dead cell at (2,2) with exactly 3 neighbors
+    GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 3, GameOfLife.Alive)
+    
+    // Create a rule with B2/S23 (no B3)
+    let noB3 = GameOfLife.make_rule([2], [2, 3])
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, noB3)
+    
+    // Dead cell with 3 neighbors should NOT be born (no B3)
+    t->expect(GameOfLife.get_cell(next, 5, 2, 2))->Expect.toBe(GameOfLife.Dead)
+    
+    // But with 2 neighbors it SHOULD be born
+    let grid2 = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid2, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid2, 5, 2, 3, GameOfLife.Alive)
+    let next2 = GameOfLife.compute_next_gen_rule(grid2, 5, 5, noB3)
+    t->expect(GameOfLife.get_cell(next2, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
+  })
+
+  test("rule without S2: live cell with 2 neighbors dies", t => {
+    // Rule with survival only on 3 (no S2)
+    let noS2 = GameOfLife.make_rule([3], [3])
+    let grid = GameOfLife.make_grid(5, 5)
+    // Live cell at (2,2) with exactly 2 neighbors (should survive under Conway, die here)
+    GameOfLife.set_cell(grid, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 3, 2, GameOfLife.Alive)
+    
+    let next = GameOfLife.compute_next_gen_rule(grid, 5, 5, noS2)
+    // With no S2, live cell with 2 neighbors dies
+    t->expect(GameOfLife.get_cell(next, 5, 2, 2))->Expect.toBe(GameOfLife.Dead)
+    
+    // With 3 neighbors it survives
+    let grid3 = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid3, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid3, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid3, 5, 3, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid3, 5, 2, 1, GameOfLife.Alive)
+    let next3 = GameOfLife.compute_next_gen_rule(grid3, 5, 5, noS2)
+    t->expect(GameOfLife.get_cell(next3, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
+  })
+})
