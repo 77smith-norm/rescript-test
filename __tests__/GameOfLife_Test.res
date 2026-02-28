@@ -366,3 +366,74 @@ describe("compute_next_gen — toroidal wrap-around", () => {
     t->expect(GameOfLife.get_cell(next, 7, 4, 6))->Expect.toBe(GameOfLife.Dead)
   })
 })
+
+// ── Grid serialization (for localStorage custom presets) ──────────────────────
+// These tests define the pure helper functions for Option C.
+// They FAIL until serialize_grid and deserialize_grid are added to GameOfLife.res.
+
+describe("serialize_grid", () => {
+  test("empty grid serializes to all-'0' string of correct length", t => {
+    let grid = GameOfLife.make_grid(3, 4)
+    let s = GameOfLife.serialize_grid(grid)
+    t->expect(String.length(s))->Expect.toBe(12)
+    t->expect(s)->Expect.toBe("000000000000")
+  })
+
+  test("Alive cell serializes to '1', Dead to '0'", t => {
+    let grid = GameOfLife.make_grid(2, 2)
+    GameOfLife.set_cell(grid, 2, 0, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 2, 1, 1, GameOfLife.Alive)
+    let s = GameOfLife.serialize_grid(grid)
+    t->expect(s)->Expect.toBe("1001")
+  })
+
+  test("all-alive grid serializes to all-'1' string", t => {
+    let grid = GameOfLife.make_grid(2, 3)
+    GameOfLife.set_cell(grid, 3, 0, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 0, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 0, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 1, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 1, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 3, 1, 2, GameOfLife.Alive)
+    let s = GameOfLife.serialize_grid(grid)
+    t->expect(s)->Expect.toBe("111111")
+  })
+})
+
+describe("deserialize_grid", () => {
+  test("all-'0' string deserializes to all-Dead grid", t => {
+    let grid = GameOfLife.deserialize_grid("000000000000")
+    t->expect(GameOfLife.count_alive(grid))->Expect.toBe(0)
+  })
+
+  test("'1' chars deserialize to Alive cells, '0' to Dead", t => {
+    // "0001" in a 2x2 grid: position 3 = (1,1)
+    let grid = GameOfLife.deserialize_grid("0001")
+    t->expect(GameOfLife.count_alive(grid))->Expect.toBe(1)
+    // use get_cell with cols=2: position 3 = row 1, col 1
+    t->expect(GameOfLife.get_cell(grid, 2, 1, 1))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_cell(grid, 2, 0, 0))->Expect.toBe(GameOfLife.Dead)
+  })
+
+  test("round-trip: serialize then deserialize gives identical alive count", t => {
+    let original = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(original, 5, 1, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 2, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 4, 0, GameOfLife.Alive)
+    let s = GameOfLife.serialize_grid(original)
+    let restored = GameOfLife.deserialize_grid(s)
+    t->expect(GameOfLife.count_alive(restored))->Expect.toBe(3)
+  })
+
+  test("round-trip: serialize then deserialize gives identical cell positions", t => {
+    let original = GameOfLife.make_grid(4, 4)
+    GameOfLife.set_cell(original, 4, 0, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 4, 3, 0, GameOfLife.Alive)
+    let s = GameOfLife.serialize_grid(original)
+    let restored = GameOfLife.deserialize_grid(s)
+    t->expect(GameOfLife.get_cell(restored, 4, 0, 3))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_cell(restored, 4, 3, 0))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_cell(restored, 4, 0, 0))->Expect.toBe(GameOfLife.Dead)
+    t->expect(GameOfLife.get_cell(restored, 4, 3, 3))->Expect.toBe(GameOfLife.Dead)
+  })
+})
