@@ -21,12 +21,10 @@ let count_live_neighbors = (grid, rows, cols, r, c) => {
     let dj = ref(-1)
     while dj.contents <= 1 {
       if !(di.contents == 0 && dj.contents == 0) {
-        let nr = r + di.contents
-        let nc = c + dj.contents
-        if nr >= 0 && nr < rows && nc >= 0 && nc < cols {
-          if get_cell(grid, cols, nr, nc) == Alive {
-            count.contents = count.contents + 1
-          }
+        let nr = (r + di.contents + rows) % rows
+        let nc = (c + dj.contents + cols) % cols
+        if get_cell(grid, cols, nr, nc) == Alive {
+          count.contents = count.contents + 1
         }
       }
       dj.contents = dj.contents + 1

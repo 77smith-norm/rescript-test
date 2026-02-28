@@ -2,6 +2,7 @@
 
 import * as Belt_Array from "@rescript/runtime/lib/es6/Belt_Array.js";
 import * as Stdlib_Array from "@rescript/runtime/lib/es6/Stdlib_Array.js";
+import * as Primitive_int from "@rescript/runtime/lib/es6/Primitive_int.js";
 
 function make_grid(rows, cols) {
   return Belt_Array.make(rows * cols | 0, "Dead");
@@ -27,9 +28,9 @@ function count_live_neighbors(grid, rows, cols, r, c) {
     let dj = -1;
     while (dj <= 1) {
       if (di !== 0 || dj !== 0) {
-        let nr = r + di | 0;
-        let nc = c + dj | 0;
-        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && get_cell(grid, cols, nr, nc) === "Alive") {
+        let nr = Primitive_int.mod_((r + di | 0) + rows | 0, rows);
+        let nc = Primitive_int.mod_((c + dj | 0) + cols | 0, cols);
+        if (get_cell(grid, cols, nr, nc) === "Alive") {
           count = count + 1 | 0;
         }
       }
