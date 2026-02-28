@@ -408,3 +408,27 @@ Which runs: `rescript && rescript-tools reanalyze -dce -json && vitest run`
 2. DCE output is `[]` (no dead code introduced)
 3. All tests pass (count increases as new tests are added)
 4. The change is committed and pushed to origin/main
+
+## Option E — Custom Life-Like Rules (2026-02-28)
+
+**Result: ✅ Clean first run.** OpenCode session `option-e` implemented all changes correctly with zero steering.
+
+### What was built
+- `rule` type: `{ birth: array<int>, survival: array<int> }`
+- `make_rule(birth, survival)` constructor
+- `rule_has_birth(rule, n)` / `rule_has_survival(rule, n)` helpers using `Belt.Array.some`
+- Preset rules: `conway` (B3/S23), `highlife` (B36/S23), `maze` (B3/S12345), `dayAndNight` (B3678/S34678)
+- `compute_next_gen_rule(grid, rows, cols, rule)` — parameterized version, old `compute_next_gen` preserved for backward compat
+- `SetRule(rule)` action + reducer case
+- `rule: rule` field added to state + `initial_state`
+- Rule selector UI in App.res: 4 buttons, active rule highlighted in purple, current rule label displayed
+
+### Harness engineering notes
+- **TDD worked cleanly.** 10 failing tests written first, all 53 pass post-implementation.
+- **Key insight:** Agent used `Belt.Array.some` for membership checks — clean, idiomatic ReScript.
+- **Pattern to note:** Agent preserved `compute_next_gen` alongside new `compute_next_gen_rule` exactly as instructed. Backward-compat enforcement through existing tests worked as designed.
+- **No JSX traps.** The rescript-12 skill is fully compounding now — agent avoided all known pitfalls.
+
+### Commits
+- `aac88ce` — Option E: failing tests (red state)
+- `d5b14bc` — Implement Option E: Custom Life-Like Rules
