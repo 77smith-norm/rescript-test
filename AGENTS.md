@@ -186,3 +186,41 @@ The explicit reducer table in the prime prompt ("this table is the entire correc
 
 ### Harness observation
 Three sessions with skill file updates → measurable improvement. The agent is no longer tripping on JSX syntax. The prime prompt quality is now the primary variable in output quality.
+
+## Testing
+
+**Unit tests are mandatory. Run them after every change.**
+
+```bash
+pnpm test
+```
+
+This runs `rescript && vitest run` — compiles first, then runs the suite. **All 27 tests must pass before you consider a task complete.**
+
+### Test file location
+
+`__tests__/GameOfLife_Test.res` — compiled to `__tests__/GameOfLife_Test.res.mjs`
+
+Tests cover all pure functions in `GameOfLife.res`: `make_grid`, `get_cell`, `set_cell`, `count_live_neighbors`, `compute_next_gen` (all 4 Conway rules + blinker oscillation + block still life), and `count_alive`.
+
+### TDD workflow
+
+When implementing a new feature:
+1. Add tests for the new behavior to `__tests__/GameOfLife_Test.res`
+2. Compile: `npx rescript`
+3. Confirm new tests fail (red)
+4. Implement the feature in `GameOfLife.res`
+5. Compile again: `npx rescript`
+6. Run: `pnpm test` — all tests must be green
+
+### Critical: Vitest version
+
+**Use vitest v3, not v4.** rescript-vitest v2.1.1 is incompatible with Vitest v4 ("No test suite found" error). vitest is pinned to ^3 in package.json. Do NOT upgrade it.
+
+### Test conventions
+
+- Tests live in `__tests__/GameOfLife_Test.res` (add to the existing file)
+- Use `open Vitest` at the top
+- Pattern: `t->expect(actual)->Expect.toBe(expected)`
+- Variants (`Alive`, `Dead`) compare correctly with `toBe` — they compile to strings in v12
+- Do NOT test React components or DOM behavior — only pure `GameOfLife.res` functions
