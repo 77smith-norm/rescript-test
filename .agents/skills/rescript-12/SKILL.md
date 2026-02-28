@@ -481,3 +481,32 @@ let handleChange = (e: ReactEvent.Form.t) => {
 ```
 
 The `target` accessor returns `{..}` (an open object), so you index into it with `["value"]`.
+
+### Integer Modulo — `mod` vs `%`, and Negative Values
+
+In ReScript v12, both `mod` and `%` are the integer modulo operator. They compile identically to `Primitive_int.mod_`, which is JavaScript `%` with a zero-division guard.
+
+**Use `mod` — it is the idiomatic ReScript keyword:**
+```res
+let remainder = 10 mod 3  // 1
+```
+
+`%` also works but is unconventional and agents unfamiliar with ReScript may confuse it with JavaScript's behavior.
+
+**Critical: Both `mod` and `%` can return NEGATIVE values for negative inputs.** This is different from Python's `%`, which always returns non-negative results.
+
+```res
+// WRONG for wrap-around — returns -1 when r=0, di=-1
+let nr = (r + di.contents) mod rows  // → -1 mod 5 = -1 ← WRONG
+
+// CORRECT — add `rows` first so the dividend is never negative
+let nr = (r + di.contents + rows) mod rows  // → (-1 + 5) mod 5 = 4 ✓
+```
+
+**Safe grid wrap-around pattern** (when offset is always in {-1, 0, 1}):
+```res
+let nr = (r + dr + rows) mod rows
+let nc = (c + dc + cols) mod cols
+```
+
+This works because `dr` and `dc` are at minimum -1, so adding the grid dimension ensures the dividend is always ≥ 0 before the modulo operation.
