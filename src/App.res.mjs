@@ -4,12 +4,28 @@ import * as React from "react";
 import * as GameOfLife from "./GameOfLife.res.mjs";
 import * as Stdlib_Int from "@rescript/runtime/lib/es6/Stdlib_Int.js";
 import * as Stdlib_Array from "@rescript/runtime/lib/es6/Stdlib_Array.js";
+import * as Primitive_int from "@rescript/runtime/lib/es6/Primitive_int.js";
 import * as JsxRuntime from "react/jsx-runtime";
+
+function computeCellSize(cols) {
+  let available = window.innerWidth - 32 | 0;
+  let size = Primitive_int.div(available, cols);
+  if (size > 15) {
+    return 15;
+  } else if (size < 8) {
+    return 8;
+  } else {
+    return size;
+  }
+}
 
 function App(props) {
   let match = React.useReducer(GameOfLife.reducer, GameOfLife.initial_state);
   let dispatch = match[1];
   let state = match[0];
+  let match$1 = React.useState(() => computeCellSize(GameOfLife.cols));
+  let setCellSize = match$1[1];
+  let cellSize = match$1[0];
   React.useEffect(() => {
     if (!state.running) {
       return;
@@ -22,13 +38,24 @@ function App(props) {
     state.running,
     state.speed
   ]);
-  let gridWidth = state.cols * 15 | 0;
-  let gridHeight = state.rows * 15 | 0;
+  React.useEffect(() => {
+    let handler = () => setCellSize(param => computeCellSize(GameOfLife.cols));
+    window.addEventListener("resize", handler);
+    return () => {
+      window.removeEventListener("resize", handler);
+    };
+  }, []);
+  let gridWidth = state.cols * cellSize | 0;
+  let gridHeight = state.rows * cellSize | 0;
   let renderGrid = () => Stdlib_Array.fromInitializer(state.rows, r => JsxRuntime.jsx("div", {
     children: Stdlib_Array.fromInitializer(state.cols, c => {
       let cell = GameOfLife.get_cell(state.grid, state.cols, r, c);
       return JsxRuntime.jsx("div", {
-        className: cell === "Alive" ? "w-4 h-4 bg-white cursor-pointer" : "w-4 h-4 bg-slate-800 cursor-pointer",
+        className: cell === "Alive" ? "bg-white cursor-pointer" : "bg-slate-800 cursor-pointer",
+        style: {
+          height: cellSize.toString() + "px",
+          width: cellSize.toString() + "px"
+        },
         onClick: param => dispatch({
           TAG: "ToggleCell",
           _0: r,
@@ -52,32 +79,69 @@ function App(props) {
     children: [
       JsxRuntime.jsx("h1", {
         children: "Conway's Game of Life",
-        className: "text-4xl font-bold mb-8"
+        className: "text-2xl md:text-4xl font-bold mb-4 md:mb-8"
       }),
       JsxRuntime.jsxs("div", {
         children: [
           JsxRuntime.jsx("button", {
             children: state.running ? "Pause" : "Play",
-            className: "px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium",
+            className: "px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium",
             onClick: param => dispatch("Toggle")
           }),
           JsxRuntime.jsx("button", {
             children: "Step",
-            className: "px-6 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium",
+            className: "px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-medium",
             onClick: param => dispatch("Step")
           }),
           JsxRuntime.jsx("button", {
             children: "Clear",
-            className: "px-6 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium",
+            className: "px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg font-medium",
             onClick: param => dispatch("Clear")
           }),
           JsxRuntime.jsx("button", {
             children: "Randomize",
-            className: "px-6 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium",
+            className: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium",
             onClick: param => dispatch("Randomize")
           })
         ],
-        className: "flex gap-4 mb-6"
+        className: "flex flex-wrap gap-2 mb-4 justify-center"
+      }),
+      JsxRuntime.jsxs("div", {
+        children: [
+          JsxRuntime.jsx("button", {
+            children: "Glider",
+            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "Glider"
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "Blinker",
+            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "Blinker"
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "Pulsar",
+            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "Pulsar"
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "R-Pentomino",
+            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "RPentomino"
+            })
+          })
+        ],
+        className: "flex flex-wrap gap-2 mb-4 justify-center"
       }),
       JsxRuntime.jsxs("div", {
         children: [
@@ -93,12 +157,12 @@ function App(props) {
             children: [
               JsxRuntime.jsx("label", {
                 children: "Speed:",
-                className: "text-sm text-slate-400",
+                className: "text-sm text-slate-400 whitespace-nowrap",
                 htmlFor: "speed-slider"
               }),
               JsxRuntime.jsx("input", {
                 defaultValue: "60",
-                className: "w-48 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer",
+                className: "flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer",
                 id: "speed-slider",
                 max: "120",
                 min: "0",
@@ -106,50 +170,13 @@ function App(props) {
                 onChange: handleSpeedChange
               })
             ],
-            className: "flex items-center gap-2"
+            className: "flex items-center gap-2 w-full max-w-xs"
           })
         ],
         className: "flex flex-col items-center gap-4 mb-6"
-      }),
-      JsxRuntime.jsxs("div", {
-        children: [
-          JsxRuntime.jsx("button", {
-            children: "Glider",
-            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
-            onClick: param => dispatch({
-              TAG: "LoadPreset",
-              _0: "Glider"
-            })
-          }),
-          JsxRuntime.jsx("button", {
-            children: "Blinker",
-            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
-            onClick: param => dispatch({
-              TAG: "LoadPreset",
-              _0: "Blinker"
-            })
-          }),
-          JsxRuntime.jsx("button", {
-            children: "Pulsar",
-            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
-            onClick: param => dispatch({
-              TAG: "LoadPreset",
-              _0: "Pulsar"
-            })
-          }),
-          JsxRuntime.jsx("button", {
-            children: "R-Pentomino",
-            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
-            onClick: param => dispatch({
-              TAG: "LoadPreset",
-              _0: "RPentomino"
-            })
-          })
-        ],
-        className: "flex gap-2 mb-6"
       })
     ],
-    className: "min-h-screen bg-slate-900 text-white flex flex-col items-center p-8"
+    className: "min-h-screen bg-slate-900 text-white flex flex-col items-center p-3 md:p-8"
   });
 }
 
