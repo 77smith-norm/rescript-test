@@ -281,3 +281,130 @@ For React entry points like `Main.res` — the `make` function is called from `i
 - `Main.res` — marked `@@live` (entry point called from HTML)
 - `Button.res` — removed (was genuinely unused scaffolding)
 - `__tests__/` — compiled as `"type": "dev"` so test-only symbols don't generate false DCE warnings
+
+## Project History
+
+A log of what was built and when, for continuity across sessions.
+
+| Session | Feature | Key Outcome |
+|---------|---------|-------------|
+| Session 1 | Scaffold + core game logic | ReScript v12 + React + Vite + Tailwind. Flat 1D grid, Conway rules, div-based renderer |
+| Session 2 | Pattern presets | Glider, Blinker, Pulsar, R-Pentomino. Skill compounding began — session avoided all session 1 JSX traps |
+| Session 3 | Responsive design | Dynamic cell size from viewport width. Agent hardcoded 390px and broke animation — manually fixed |
+| Session 4 | Generation counter + live cell stats | Explicit reducer table in prime → clean first run, zero intervention |
+| Option B | Toroidal edges | TDD: 9 failing tests written first. OpenCode implemented `count_live_neighbors` modulo wrap. 36/36 |
+| Option C | localStorage custom presets | `serialize_grid`, `deserialize_grid` pure functions + App.res UI. 43/43. Used deprecated Js.Nullable APIs — fixed post-run |
+| Harness | Unit test suite + reanalyze | Vitest setup, 43 tests across all pure functions. DCE analysis baseline: clean. `pnpm run check` = full quality gate |
+
+---
+
+## Roadmap
+
+Features planned for future OpenCode sessions, in order. Each should follow the TDD pattern: write failing tests first, confirm red, then prime and spawn.
+
+### Option D — Cell Age / Color Gradient
+
+Cells accumulate age over time. Surviving cells increment age each generation; newly born cells start at age 1; dead cells reset to 0. The renderer colors cells by age — creating a visual gradient that shows which parts of the grid are actively changing vs. stable.
+
+**Pure logic changes:**
+- Add `ages: array<int>` alongside `grid` in state
+- Refactor `compute_next_gen` to return `(next_grid, next_ages)` tuple, or a record
+- Rule: surviving cell → age + 1; new birth → 1; death → 0
+- New function: `compute_age_color(age: int): string` → CSS color value
+
+**Tests to write first:**
+- Surviving cell increments age
+- New birth sets age to 1
+- Dead cell resets age to 0
+- Block still life: all cells reach age N after N generations
+- Empty grid: all ages remain 0
+
+**Harness interest:** Adds parallel state arrays with non-trivial interaction. First test of whether OpenCode can evolve two arrays in lockstep correctly.
+
+---
+
+### Option E — Custom Life-Like Rules
+
+Parameterize the ruleset so Conway (`B3/S23`) is just one option. Add a `rule` field to state with birth and survival neighbor count sets. Include preset rules selectable from the UI.
+
+**Preset rules to include:**
+- Conway: `B3/S23` (birth on 3, survive on 2-3) — current hardcoded behavior
+- HighLife: `B36/S23` (adds glider replication)
+- Maze: `B3/S12345` (generates maze-like structures)
+- Day & Night: `B3678/S34678` (symmetric, self-complementary)
+
+**Pure logic changes:**
+- Add `type rule = { birth: array<int>, survival: array<int> }` to GameOfLife.res
+- Refactor `compute_next_gen` to accept a `rule` parameter
+- Add `type action = ... | SetRule(rule)` and reducer case
+- Add preset rule definitions as named constants
+
+**Tests to write first:**
+- Blinker survives under Conway but verify behavior changes under rules where `S2` is absent
+- Dead cell with 3 neighbors: born under Conway, not under a rule without `B3`
+- Rule round-trip: changing rule and back produces expected results
+- Verify existing 36 tests still pass with the Conway rule passed explicitly
+
+**Harness interest:** First real *refactor* — changing an existing function signature rather than adding beside it. Tests protect existing behavior while prime describes the new shape.
+
+---
+
+### Option F — RLE Import / Export
+
+Run Length Encoding is the standard format for Conway Life patterns. Add a UI panel where users can paste RLE text to load any pattern from [conwaylife.com](https://conwaylife.com), and export the current grid as RLE to share.
+
+**RLE format basics:**
+- Header: `x = cols, y = rows, rule = B3/S23`
+- Body: runs of `b` (dead) and `o` (alive), `$` = end of row, `!` = end of pattern
+- Numbers prefix runs: `3o` = three alive cells, `2b` = two dead cells
+
+**Pure logic changes:**
+- New functions: `encode_rle(grid, rows, cols) → string`
+- `decode_rle(s) → option<(array<cell>, int, int)>` (grid + dimensions, or None on parse failure)
+
+**Tests to write first:**
+- Glider encodes to its canonical RLE string
+- Blinker encodes correctly
+- Decode a known RLE string and verify cell positions
+- Round-trip: encode then decode gives identical grid
+- Invalid RLE returns None gracefully
+
+**Harness interest:** Entirely new pure module with rich, ground-truth test cases. Real-world utility — any pattern from the Conway wiki can be imported.
+
+---
+
+### Option G — URL State / Pattern Sharing
+
+Encode the current grid state (or a custom preset) into the URL hash so patterns can be shared by link. Load state from URL on mount if a hash is present.
+
+**Pure logic changes:**
+- `encode_url_state(grid) → string` — compact encoding (base64 or hex of the binary string)
+- `decode_url_state(s) → option<array<cell>>` — decode and validate, return None on failure
+- `useEffect0` in App.res to read `window.location.hash` on mount
+- Update hash whenever a custom preset is saved
+
+**Tests to write first:**
+- Round-trip: encode then decode gives identical grid
+- Known grid produces stable, reproducible URL string
+- Malformed hash returns None without crashing
+- Empty grid encodes/decodes correctly
+
+**Harness interest:** Encoding is pure and highly testable. The mount behavior is a new pattern. Tests for the encoding layer are definitive even without DOM testing.
+
+---
+
+## Done When (Updated — All Future Sessions)
+
+Every future OpenCode session must satisfy:
+
+```bash
+pnpm run check
+```
+
+Which runs: `rescript && rescript-tools reanalyze -dce -json && vitest run`
+
+**Acceptance criteria:**
+1. `pnpm run check` exits with code 0
+2. DCE output is `[]` (no dead code introduced)
+3. All tests pass (count increases as new tests are added)
+4. The change is committed and pushed to origin/main
