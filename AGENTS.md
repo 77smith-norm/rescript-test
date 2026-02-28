@@ -224,3 +224,60 @@ When implementing a new feature:
 - Pattern: `t->expect(actual)->Expect.toBe(expected)`
 - Variants (`Alive`, `Dead`) compare correctly with `toBe` — they compile to strings in v12
 - Do NOT test React components or DOM behavior — only pure `GameOfLife.res` functions
+
+## Dead Code Analysis (reanalyze)
+
+**Run after every change.** Dead code analysis is part of the quality gate.
+
+```bash
+# DCE analysis — text output
+pnpm run res:analyze
+
+# DCE analysis — JSON output (for agent parsing)
+pnpm run res:analyze:json
+
+# Full quality gate: DCE + tests
+pnpm run check
+```
+
+`pnpm run check` = `res:analyze:json && pnpm test`. **Both must pass.**
+
+### What reanalyze checks
+
+- Dead values (functions/bindings that are never called)
+- Dead types, record fields, variant cases (defined but never used)
+- Uses `rescript-tools reanalyze -dce` — ships with the `rescript` package (v12.2+)
+- Reads `.cmt` files from the previous build — always runs `rescript` first
+
+### Clean output
+
+A clean run looks like:
+```
+[ ]
+```
+(Empty JSON array, exit code 0.)
+
+Any warnings mean the agent introduced dead code and must fix it before the task is complete.
+
+### Annotations
+
+When a value must exist but reanalyze can't see its caller (e.g. entry points called from JS):
+
+```res
+// Top of file — marks ALL items in the file as live
+@@live
+
+// Single value
+@live
+let myExternallyCalledFn = ...
+```
+
+For React entry points like `Main.res` — the `make` function is called from `index.html`, not from ReScript. Mark the whole file `@@live`.
+
+**Do NOT add `@@live` to suppress genuine dead code.** Fix or remove unused code instead.
+
+### Known baseline
+
+- `Main.res` — marked `@@live` (entry point called from HTML)
+- `Button.res` — removed (was genuinely unused scaffolding)
+- `__tests__/` — compiled as `"type": "dev"` so test-only symbols don't generate false DCE warnings

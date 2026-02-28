@@ -26,5 +26,13 @@
   "compiler-flags": [],
   "dev-dependencies": [
     "rescript-vitest"
-  ]
+  ],
+  "reanalyze": {
+    "analysis": [
+      "dce"
+    ],
+    "suppress": [],
+    "unsuppress": [],
+    "transitive": false
+  }
 }

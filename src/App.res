@@ -1,7 +1,7 @@
 @val external windowInnerWidth: int = "window.innerWidth"
 @val external addEventListener: (string, unit => unit) => unit = "window.addEventListener"
 @val external removeEventListener: (string, unit => unit) => unit = "window.removeEventListener"
-@val external localStorageGetItem: string => Js.Nullable.t<string> = "localStorage.getItem"
+@val external localStorageGetItem: string => Nullable.t<string> = "localStorage.getItem"
 @val external localStorageSetItem: (string, string) => unit = "localStorage.setItem"
 
 type savedPreset = {name: string, cells: string}
@@ -15,10 +15,10 @@ let computeCellSize = (cols: int): int => {
 let storageKey = "gol:custom-presets"
 
 let loadFromStorage = (): array<savedPreset> => {
-  switch Js.Nullable.toOption(localStorageGetItem(storageKey)) {
+  switch Nullable.toOption(localStorageGetItem(storageKey)) {
   | None => []
   | Some(raw) =>
-    switch JSON.parseExn(raw) {
+    switch JSON.parseOrThrow(raw) {
     | json =>
       switch json {
       | Array(items) =>

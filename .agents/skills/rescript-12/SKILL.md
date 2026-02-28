@@ -510,3 +510,64 @@ let nc = (c + dc + cols) mod cols
 ```
 
 This works because `dr` and `dc` are at minimum -1, so adding the grid dimension ensures the dividend is always ≥ 0 before the modulo operation.
+
+---
+
+## Dead Code Analysis — reanalyze
+
+ReScript 12.2 ships `rescript-tools reanalyze` as part of the `rescript` package. Always run it after changes.
+
+### Commands
+
+```bash
+pnpm run res:analyze        # text output
+pnpm run res:analyze:json   # JSON output (agent-parseable)
+pnpm run check              # DCE + tests (full quality gate)
+```
+
+### What triggers a DCE warning
+
+- A function or value that is defined but never called from ReScript code
+- A type, record field, or variant case that is defined but never used
+- React `make` functions called only from JS/HTML (not ReScript) — see annotation below
+
+### Annotations
+
+```res
+// At top of file — marks ALL items live (use for JS-entry-point files)
+@@live
+
+// Single declaration — marks one item live
+@live
+let myFn = ...
+```
+
+**Only use `@@live` / `@live` for items that are genuinely called from outside ReScript** (e.g. entry points, exported APIs). Do not use it to silence warnings on actual dead code — remove that code instead.
+
+### React entry points
+
+React component `make` functions called from `index.html` JS bootstrap (not from ReScript) will show as dead. Add `@@live` to those files:
+
+```res
+// Main.res
+@@live
+
+@react.component
+let make = () => <App />
+```
+
+### `__tests__/` and dev sources
+
+Test files compiled with `"type": "dev"` in `rescript.json` are treated as live by reanalyze. Symbols only referenced in tests do not produce false DCE warnings. No annotation needed.
+
+### Deprecated APIs (as of 12.2.0)
+
+When OpenCode writes localStorage or nullable code, it may use deprecated APIs. Migrate:
+
+| Old | New |
+|-----|-----|
+| `Js.Nullable.t<'a>` | `Nullable.t<'a>` |
+| `Js.Nullable.toOption(x)` | `Nullable.toOption(x)` |
+| `JSON.parseExn(s)` | `JSON.parseOrThrow(s)` |
+
+Run `pnpm exec rescript-tools migrate-all .` to auto-migrate, or fix manually.

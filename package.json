@@ -11,7 +11,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "rescript && vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "res:analyze": "rescript && rescript-tools reanalyze -dce",
+    "res:analyze:json": "rescript && rescript-tools reanalyze -dce -json",
+    "check": "pnpm run res:analyze:json && pnpm test"
   },
   "dependencies": {
     "@rescript/react": "^0.14.0",
