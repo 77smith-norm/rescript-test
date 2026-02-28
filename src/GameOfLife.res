@@ -188,6 +188,62 @@ let deserialize_grid = (s: string): array<cell> =>
     }
   )
 
+// Age tracking
+let make_ages = (rows: int, cols: int): array<int> =>
+  Belt.Array.make(rows * cols, 0)
+
+let get_age = (ages: array<int>, cols: int, r: int, c: int): int =>
+  switch Belt.Array.get(ages, r * cols + c) {
+  | Some(age) => age
+  | None => 0
+  }
+
+let set_age = (ages: array<int>, cols: int, r: int, c: int, value: int): unit => {
+  let _ = Belt.Array.set(ages, r * cols + c, value)
+}
+
+let count_nonzero_ages = (ages: array<int>): int =>
+  Array.reduce(ages, 0, (acc, age) => if age > 0 { acc + 1 } else { acc })
+
+let compute_next_gen_with_age = (grid, ages, rows, cols) => {
+  let next_grid = make_grid(rows, cols)
+  let next_ages = make_ages(rows, cols)
+  let r = ref(0)
+  while r.contents < rows {
+    let c = ref(0)
+    while c.contents < cols {
+      let n = count_live_neighbors(grid, rows, cols, r.contents, c.contents)
+      let current_cell = get_cell(grid, cols, r.contents, c.contents)
+      let current_age = get_age(ages, cols, r.contents, c.contents)
+      let (new_cell, new_age) = switch current_cell {
+        | Alive =>
+          if n < 2 || n > 3 {
+            (Dead, 0)
+          } else {
+            (Alive, current_age + 1)
+          }
+        | Dead  =>
+          if n == 3 {
+            (Alive, 1)
+          } else {
+            (Dead, 0)
+          }
+      }
+      set_cell(next_grid, cols, r.contents, c.contents, new_cell)
+      set_age(next_ages, cols, r.contents, c.contents, new_age)
+      c.contents = c.contents + 1
+    }
+    r.contents = r.contents + 1
+  }
+  (next_grid, next_ages)
+}
+
+let compute_age_color = (age: int): string => {
+  let lightness = 20 + (age * 3)
+  let capped_lightness = if lightness > 80 { 80 } else { lightness }
+  "hsl(200, 70%, " ++ Int.toString(capped_lightness) ++ "%)"
+}
+
 type action =
   | Toggle
   | Step
@@ -207,24 +263,34 @@ type state = {
   speed: int,
   generation: int,
   rule: rule,
+  ages: array<int>,
 }
 
 let reducer = (state, action) =>
   switch action {
   | Toggle => {...state, running: !state.running}
-  | Step   => {...state, grid: compute_next_gen(state.grid, state.rows, state.cols), generation: state.generation + 1}
-  | Clear  => {...state, grid: make_grid(state.rows, state.cols), running: false, generation: 0}
-  | Randomize => {...state, grid: randomize_grid(state.rows, state.cols), generation: 0}
+  | Step   =>
+    let (next_grid, next_ages) = compute_next_gen_with_age(state.grid, state.ages, state.rows, state.cols)
+    {...state, grid: next_grid, ages: next_ages, generation: state.generation + 1}
+  | Clear  =>
+    let new_ages = make_ages(state.rows, state.cols)
+    {...state, grid: make_grid(state.rows, state.cols), ages: new_ages, running: false, generation: 0}
+  | Randomize =>
+    let new_ages = make_ages(state.rows, state.cols)
+    {...state, grid: randomize_grid(state.rows, state.cols), ages: new_ages, generation: 0}
   | SetSpeed(speed) => {...state, speed}
   | ToggleCell(r, c) =>
-    let next = Belt.Array.copy(state.grid)
-    let cur = get_cell(next, state.cols, r, c)
-    set_cell(next, state.cols, r, c, switch cur { | Alive => Dead | Dead => Alive })
-    {...state, grid: next}
+    let next_grid = Belt.Array.copy(state.grid)
+    let next_ages = Belt.Array.copy(state.ages)
+    let cur = get_cell(next_grid, state.cols, r, c)
+    set_cell(next_grid, state.cols, r, c, switch cur { | Alive => Dead | Dead => Alive })
+    {...state, grid: next_grid, ages: next_ages}
   | LoadPreset(p) =>
-    {...state, grid: load_preset(p, state.rows, state.cols), running: false, generation: 0}
+    let new_ages = make_ages(state.rows, state.cols)
+    {...state, grid: load_preset(p, state.rows, state.cols), ages: new_ages, running: false, generation: 0}
   | LoadCustomPreset(cells) =>
-    {...state, grid: cells, running: false, generation: 0}
+    let new_ages = make_ages(state.rows, state.cols)
+    {...state, grid: cells, ages: new_ages, running: false, generation: 0}
   | SetRule(r) => {...state, rule: r}
   }
 
@@ -239,4 +305,5 @@ let initial_state = {
   speed: 100,
   generation: 0,
   rule: conway,
+  ages: make_ages(rows, cols),
 }

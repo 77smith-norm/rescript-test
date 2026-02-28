@@ -472,4 +472,133 @@ Vitest.describe("compute_next_gen with rule parameter", undefined, undefined, un
   });
 });
 
+Vitest.describe("cell age tracking", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("make_ages creates array of correct size", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let ages = GameOfLife.make_ages(5, 4);
+    t.expect(ages.length).toBe(20);
+  });
+  Vitest.test("all ages initialized to 0", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let ages = GameOfLife.make_ages(3, 3);
+    t.expect(GameOfLife.count_nonzero_ages(ages)).toBe(0);
+  });
+  Vitest.test("get_age returns correct value", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let ages = GameOfLife.make_ages(5, 5);
+    GameOfLife.set_age(ages, 5, 2, 3, 7);
+    t.expect(GameOfLife.get_age(ages, 5, 2, 3)).toBe(7);
+  });
+  Vitest.test("set_age updates value", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let ages = GameOfLife.make_ages(5, 5);
+    GameOfLife.set_age(ages, 5, 1, 1, 5);
+    GameOfLife.set_age(ages, 5, 1, 1, 10);
+    t.expect(GameOfLife.get_age(ages, 5, 1, 1)).toBe(10);
+  });
+  Vitest.test("out-of-bounds get_age returns 0", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let ages = GameOfLife.make_ages(5, 5);
+    t.expect(GameOfLife.get_age(ages, 5, 10, 10)).toBe(0);
+  });
+});
+
+Vitest.describe("compute_next_gen with age tracking", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("surviving cell increments age", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let ages = GameOfLife.make_ages(5, 5);
+    GameOfLife.set_cell(grid, 5, 2, 2, "Alive");
+    GameOfLife.set_age(ages, 5, 2, 2, 5);
+    GameOfLife.set_cell(grid, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 3, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 1, "Alive");
+    let match = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5);
+    t.expect(GameOfLife.get_cell(match[0], 5, 2, 2)).toBe("Alive");
+    t.expect(GameOfLife.get_age(match[1], 5, 2, 2)).toBe(6);
+  });
+  Vitest.test("new birth sets age to 1", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let ages = GameOfLife.make_ages(5, 5);
+    GameOfLife.set_cell(grid, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 1, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 3, "Alive");
+    let match = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5);
+    t.expect(GameOfLife.get_cell(match[0], 5, 2, 2)).toBe("Alive");
+    t.expect(GameOfLife.get_age(match[1], 5, 2, 2)).toBe(1);
+  });
+  Vitest.test("dead cell resets age to 0", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let ages = GameOfLife.make_ages(5, 5);
+    GameOfLife.set_cell(grid, 5, 2, 2, "Alive");
+    GameOfLife.set_age(ages, 5, 2, 2, 10);
+    GameOfLife.set_cell(grid, 5, 2, 3, "Alive");
+    let match = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5);
+    t.expect(GameOfLife.get_cell(match[0], 5, 2, 2)).toBe("Dead");
+    t.expect(GameOfLife.get_age(match[1], 5, 2, 2)).toBe(0);
+  });
+  Vitest.test("block still life: all cells age together", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(6, 6);
+    let ages = GameOfLife.make_ages(6, 6);
+    GameOfLife.set_cell(grid, 6, 2, 2, "Alive");
+    GameOfLife.set_cell(grid, 6, 2, 3, "Alive");
+    GameOfLife.set_cell(grid, 6, 3, 2, "Alive");
+    GameOfLife.set_cell(grid, 6, 3, 3, "Alive");
+    GameOfLife.set_age(ages, 6, 2, 2, 3);
+    GameOfLife.set_age(ages, 6, 2, 3, 3);
+    GameOfLife.set_age(ages, 6, 3, 2, 3);
+    GameOfLife.set_age(ages, 6, 3, 3, 3);
+    let match = GameOfLife.compute_next_gen_with_age(grid, ages, 6, 6);
+    let match$1 = GameOfLife.compute_next_gen_with_age(grid, match[1], 6, 6);
+    let match$2 = GameOfLife.compute_next_gen_with_age(grid, match$1[1], 6, 6);
+    let match$3 = GameOfLife.compute_next_gen_with_age(grid, match$2[1], 6, 6);
+    let match$4 = GameOfLife.compute_next_gen_with_age(grid, match$3[1], 6, 6);
+    let ages5 = match$4[1];
+    t.expect(GameOfLife.get_age(ages5, 6, 2, 2)).toBe(8);
+    t.expect(GameOfLife.get_age(ages5, 6, 2, 3)).toBe(8);
+    t.expect(GameOfLife.get_age(ages5, 6, 3, 2)).toBe(8);
+    t.expect(GameOfLife.get_age(ages5, 6, 3, 3)).toBe(8);
+  });
+  Vitest.test("empty grid: all ages remain 0", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let ages = GameOfLife.make_ages(5, 5);
+    let match = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5);
+    t.expect(GameOfLife.count_alive(match[0])).toBe(0);
+    t.expect(GameOfLife.count_nonzero_ages(match[1])).toBe(0);
+  });
+  Vitest.test("mix of births, deaths, and survivors in one generation", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let ages = GameOfLife.make_ages(5, 5);
+    GameOfLife.set_cell(grid, 5, 2, 0, "Alive");
+    GameOfLife.set_age(ages, 5, 2, 0, 4);
+    GameOfLife.set_cell(grid, 5, 2, 2, "Alive");
+    GameOfLife.set_age(ages, 5, 2, 2, 7);
+    GameOfLife.set_cell(grid, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 3, 2, "Alive");
+    let match = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5);
+    let next_ages = match[1];
+    let next_grid = match[0];
+    t.expect(GameOfLife.get_cell(next_grid, 5, 2, 0)).toBe("Dead");
+    t.expect(GameOfLife.get_age(next_ages, 5, 2, 0)).toBe(0);
+    t.expect(GameOfLife.get_cell(next_grid, 5, 2, 2)).toBe("Alive");
+    t.expect(GameOfLife.get_age(next_ages, 5, 2, 2)).toBe(8);
+    t.expect(GameOfLife.get_cell(next_grid, 5, 2, 3)).toBe("Alive");
+    t.expect(GameOfLife.get_age(next_ages, 5, 2, 3)).toBe(1);
+  });
+});
+
+Vitest.describe("compute_age_color", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("age 0 returns dark color", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let color = GameOfLife.compute_age_color(0);
+    t.expect(color.length).not.toBe(0);
+  });
+  Vitest.test("age 1 returns distinct color from age 0", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let color0 = GameOfLife.compute_age_color(0);
+    let color1 = GameOfLife.compute_age_color(1);
+    t.expect(color0).not.toBe(color1);
+  });
+  Vitest.test("higher ages produce progressively lighter colors", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let c1 = GameOfLife.compute_age_color(1);
+    let c10 = GameOfLife.compute_age_color(10);
+    let c50 = GameOfLife.compute_age_color(50);
+    t.expect(c1.length).not.toBe(0);
+    t.expect(c10.length).not.toBe(0);
+    t.expect(c50.length).not.toBe(0);
+  });
+});
+
 /*  Not a pure module */

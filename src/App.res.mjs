@@ -99,10 +99,12 @@ function App(props) {
   let gridHeight = state.rows * cellSize | 0;
   let renderGrid = () => Stdlib_Array.fromInitializer(state.rows, r => JsxRuntime.jsx("div", {
     children: Stdlib_Array.fromInitializer(state.cols, c => {
-      let cell = GameOfLife.get_cell(state.grid, state.cols, r, c);
+      let age = GameOfLife.get_age(state.ages, state.cols, r, c);
+      let color = GameOfLife.compute_age_color(age);
       return JsxRuntime.jsx("div", {
-        className: cell === "Alive" ? "bg-white cursor-pointer" : "bg-slate-800 cursor-pointer",
+        className: "cursor-pointer",
         style: {
+          backgroundColor: color,
           height: cellSize.toString() + "px",
           width: cellSize.toString() + "px"
         },
@@ -116,6 +118,13 @@ function App(props) {
     className: "flex"
   }, r.toString()));
   let liveCount = GameOfLife.count_alive(state.grid);
+  let maxAge = Stdlib_Array.reduce(state.ages, 0, (acc, age) => {
+    if (age > acc) {
+      return age;
+    } else {
+      return acc;
+    }
+  });
   let ruleLabel = Primitive_object.equal(state.rule, GameOfLife.conway) ? "Conway (B3/S23)" : (
       Primitive_object.equal(state.rule, GameOfLife.highlife) ? "HighLife (B36/S23)" : (
           Primitive_object.equal(state.rule, GameOfLife.maze) ? "Maze (B3/S12345)" : (
@@ -246,6 +255,10 @@ function App(props) {
           }),
           JsxRuntime.jsx("span", {
             children: "Live: " + liveCount.toString(),
+            className: "text-slate-400"
+          }),
+          JsxRuntime.jsx("span", {
+            children: "Max Age: " + maxAge.toString(),
             className: "text-slate-400"
           }),
           JsxRuntime.jsx("span", {

@@ -509,6 +509,79 @@ function deserialize_grid(s) {
   });
 }
 
+function make_ages(rows, cols) {
+  return Belt_Array.make(rows * cols | 0, 0);
+}
+
+function get_age(ages, cols, r, c) {
+  let age = Belt_Array.get(ages, (r * cols | 0) + c | 0);
+  if (age !== undefined) {
+    return age;
+  } else {
+    return 0;
+  }
+}
+
+function set_age(ages, cols, r, c, value) {
+  Belt_Array.set(ages, (r * cols | 0) + c | 0, value);
+}
+
+function count_nonzero_ages(ages) {
+  return Stdlib_Array.reduce(ages, 0, (acc, age) => {
+    if (age > 0) {
+      return acc + 1 | 0;
+    } else {
+      return acc;
+    }
+  });
+}
+
+function compute_next_gen_with_age(grid, ages, rows, cols) {
+  let next_grid = make_grid(rows, cols);
+  let next_ages = make_ages(rows, cols);
+  let r = 0;
+  while (r < rows) {
+    let c = 0;
+    while (c < cols) {
+      let n = count_live_neighbors(grid, rows, cols, r, c);
+      let current_cell = get_cell(grid, cols, r, c);
+      let current_age = get_age(ages, cols, r, c);
+      let match;
+      match = current_cell === "Alive" ? (
+          n < 2 || n > 3 ? [
+              "Dead",
+              0
+            ] : [
+              "Alive",
+              current_age + 1 | 0
+            ]
+        ) : (
+          n === 3 ? [
+              "Alive",
+              1
+            ] : [
+              "Dead",
+              0
+            ]
+        );
+      set_cell(next_grid, cols, r, c, match[0]);
+      set_age(next_ages, cols, r, c, match[1]);
+      c = c + 1 | 0;
+    };
+    r = r + 1 | 0;
+  };
+  return [
+    next_grid,
+    next_ages
+  ];
+}
+
+function compute_age_color(age) {
+  let lightness = 20 + (age * 3 | 0) | 0;
+  let capped_lightness = lightness > 80 ? 80 : lightness;
+  return "hsl(200, 70%, " + capped_lightness.toString() + "%)";
+}
+
 function reducer(state, action) {
   if (typeof action !== "object") {
     switch (action) {
@@ -520,19 +593,23 @@ function reducer(state, action) {
           running: !state.running,
           speed: state.speed,
           generation: state.generation,
-          rule: state.rule
+          rule: state.rule,
+          ages: state.ages
         };
       case "Step" :
+        let match = compute_next_gen_with_age(state.grid, state.ages, state.rows, state.cols);
         return {
-          grid: compute_next_gen(state.grid, state.rows, state.cols),
+          grid: match[0],
           rows: state.rows,
           cols: state.cols,
           running: state.running,
           speed: state.speed,
           generation: state.generation + 1 | 0,
-          rule: state.rule
+          rule: state.rule,
+          ages: match[1]
         };
       case "Clear" :
+        let new_ages = make_ages(state.rows, state.cols);
         return {
           grid: make_grid(state.rows, state.cols),
           rows: state.rows,
@@ -540,9 +617,11 @@ function reducer(state, action) {
           running: false,
           speed: state.speed,
           generation: 0,
-          rule: state.rule
+          rule: state.rule,
+          ages: new_ages
         };
       case "Randomize" :
+        let new_ages$1 = make_ages(state.rows, state.cols);
         return {
           grid: randomize_grid(state.rows, state.cols),
           rows: state.rows,
@@ -550,7 +629,8 @@ function reducer(state, action) {
           running: state.running,
           speed: state.speed,
           generation: 0,
-          rule: state.rule
+          rule: state.rule,
+          ages: new_ages$1
         };
     }
   } else {
@@ -563,26 +643,30 @@ function reducer(state, action) {
           running: state.running,
           speed: action._0,
           generation: state.generation,
-          rule: state.rule
+          rule: state.rule,
+          ages: state.ages
         };
       case "ToggleCell" :
         let c = action._1;
         let r = action._0;
-        let next = state.grid.slice(0);
-        let cur = get_cell(next, state.cols, r, c);
+        let next_grid = state.grid.slice(0);
+        let next_ages = state.ages.slice(0);
+        let cur = get_cell(next_grid, state.cols, r, c);
         let tmp;
         tmp = cur === "Alive" ? "Dead" : "Alive";
-        set_cell(next, state.cols, r, c, tmp);
+        set_cell(next_grid, state.cols, r, c, tmp);
         return {
-          grid: next,
+          grid: next_grid,
           rows: state.rows,
           cols: state.cols,
           running: state.running,
           speed: state.speed,
           generation: state.generation,
-          rule: state.rule
+          rule: state.rule,
+          ages: next_ages
         };
       case "LoadPreset" :
+        let new_ages$2 = make_ages(state.rows, state.cols);
         return {
           grid: load_preset(action._0, state.rows, state.cols),
           rows: state.rows,
@@ -590,9 +674,11 @@ function reducer(state, action) {
           running: false,
           speed: state.speed,
           generation: 0,
-          rule: state.rule
+          rule: state.rule,
+          ages: new_ages$2
         };
       case "LoadCustomPreset" :
+        let new_ages$3 = make_ages(state.rows, state.cols);
         return {
           grid: action._0,
           rows: state.rows,
@@ -600,7 +686,8 @@ function reducer(state, action) {
           running: false,
           speed: state.speed,
           generation: 0,
-          rule: state.rule
+          rule: state.rule,
+          ages: new_ages$3
         };
       case "SetRule" :
         return {
@@ -610,13 +697,16 @@ function reducer(state, action) {
           running: state.running,
           speed: state.speed,
           generation: state.generation,
-          rule: action._0
+          rule: action._0,
+          ages: state.ages
         };
     }
   }
 }
 
 let initial_state_grid = make_grid(20, 40);
+
+let initial_state_ages = make_ages(20, 40);
 
 let initial_state = {
   grid: initial_state_grid,
@@ -625,7 +715,8 @@ let initial_state = {
   running: false,
   speed: 100,
   generation: 0,
-  rule: conway
+  rule: conway,
+  ages: initial_state_ages
 };
 
 let rows = 20;
@@ -653,6 +744,12 @@ export {
   count_alive,
   serialize_grid,
   deserialize_grid,
+  make_ages,
+  get_age,
+  set_age,
+  count_nonzero_ages,
+  compute_next_gen_with_age,
+  compute_age_color,
   reducer,
   rows,
   cols,

@@ -75,12 +75,13 @@ let make = () => {
   let gridHeight = state.rows * cellSize
 
   let renderCell = (r, c): React.element => {
-    let cell = GameOfLife.get_cell(state.grid, state.cols, r, c)
+    let age = GameOfLife.get_age(state.ages, state.cols, r, c)
+    let color = GameOfLife.compute_age_color(age)
     <div
       key={Int.toString(c)}
       onClick={_ => dispatch(GameOfLife.ToggleCell(r, c))}
-      className={if cell == GameOfLife.Alive { "bg-white cursor-pointer" } else { "bg-slate-800 cursor-pointer" }}
-      style={{width: Int.toString(cellSize) ++ "px", height: Int.toString(cellSize) ++ "px"}}
+      className="cursor-pointer"
+      style={{width: Int.toString(cellSize) ++ "px", height: Int.toString(cellSize) ++ "px", backgroundColor: color}}
     />
   }
 
@@ -94,6 +95,8 @@ let make = () => {
     React.array(Array.fromInitializer(~length=state.rows, r => renderRow(r)))
 
   let liveCount = GameOfLife.count_alive(state.grid)
+
+  let maxAge = state.ages->Array.reduce(0, (acc, age) => if age > acc { age } else { acc })
 
   let ruleLabel = switch state.rule {
     | _ if state.rule == GameOfLife.conway => "Conway (B3/S23)"
@@ -199,6 +202,9 @@ let make = () => {
       </span>
       <span className="text-slate-400">
         {React.string("Live: " ++ Int.toString(liveCount))}
+      </span>
+      <span className="text-slate-400">
+        {React.string("Max Age: " ++ Int.toString(maxAge))}
       </span>
       <span className="text-slate-400">
         {React.string("Rule: " ++ ruleLabel)}

@@ -730,24 +730,22 @@ describe("compute_next_gen with age tracking", () => {
   test("mix of births, deaths, and survivors in one generation", t => {
     let grid = GameOfLife.make_grid(5, 5)
     let ages = GameOfLife.make_ages(5, 5)
-    // Pattern: (2,1) dies, (2,2) survives, (2,3) born
-    // (2,1): alive with 0 neighbors → dies
-    GameOfLife.set_cell(grid, 5, 2, 1, GameOfLife.Alive)
-    GameOfLife.set_age(ages, 5, 2, 1, 4)
-    // (2,2): alive with 2 neighbors → survives  
+    // Pattern: (2,0) dies, (2,2) survives, (2,3) born
+    // (2,0): alive with 0 neighbors (isolated) → dies
+    GameOfLife.set_cell(grid, 5, 2, 0, GameOfLife.Alive)
+    GameOfLife.set_age(ages, 5, 2, 0, 4)
+    // (2,2): alive with 2 neighbors (1,2), (3,2) → survives  
     GameOfLife.set_cell(grid, 5, 2, 2, GameOfLife.Alive)
     GameOfLife.set_age(ages, 5, 2, 2, 7)
-    GameOfLife.set_cell(grid, 5, 2, 0, GameOfLife.Alive)
-    GameOfLife.set_cell(grid, 5, 2, 3, GameOfLife.Alive)
-    // (2,3): dead with 3 neighbors → born
     GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
     GameOfLife.set_cell(grid, 5, 3, 2, GameOfLife.Alive)
+    // (2,3): dead with 3 neighbors (2,2), (1,2), (3,2) → born
     
     let (next_grid, next_ages) = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5)
     
-    // (2,1): died → dead, age 0
-    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 1))->Expect.toBe(GameOfLife.Dead)
-    t->expect(GameOfLife.get_age(next_ages, 5, 2, 1))->Expect.toBe(0)
+    // (2,0): died → dead, age 0
+    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 0))->Expect.toBe(GameOfLife.Dead)
+    t->expect(GameOfLife.get_age(next_ages, 5, 2, 0))->Expect.toBe(0)
     // (2,2): survived → alive, age 8
     t->expect(GameOfLife.get_cell(next_grid, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
     t->expect(GameOfLife.get_age(next_ages, 5, 2, 2))->Expect.toBe(8)
@@ -762,7 +760,7 @@ describe("compute_age_color", () => {
   test("age 0 returns dark color", t => {
     let color = GameOfLife.compute_age_color(0)
     // Should be a dark CSS color string
-    t->expect(String.length(color))->Expect.toBeGreaterThan(0)
+    t->expect(String.length(color))->Expect.not->Expect.toBe(0)
   })
 
   test("age 1 returns distinct color from age 0", t => {
@@ -777,8 +775,8 @@ describe("compute_age_color", () => {
     let c10 = GameOfLife.compute_age_color(10)
     let c50 = GameOfLife.compute_age_color(50)
     // Just verify they return strings
-    t->expect(String.length(c1))->Expect.toBeGreaterThan(0)
-    t->expect(String.length(c10))->Expect.toBeGreaterThan(0)
-    t->expect(String.length(c50))->Expect.toBeGreaterThan(0)
+    t->expect(String.length(c1))->Expect.not->Expect.toBe(0)
+    t->expect(String.length(c10))->Expect.not->Expect.toBe(0)
+    t->expect(String.length(c50))->Expect.not->Expect.toBe(0)
   })
 })
