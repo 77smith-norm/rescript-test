@@ -55,6 +55,57 @@ let compute_next_gen = (grid, rows, cols) => {
   next
 }
 
+type preset = Glider | Blinker | Pulsar | RPentomino
+
+let load_preset = (p: preset, rows: int, cols: int): array<cell> => {
+  let grid = make_grid(rows, cols)
+  let center_r = rows / 2
+  let center_c = cols / 2
+
+  switch p {
+  | Glider => {
+    let offsets = [(0, 1), (1, 2), (2, 0), (2, 1), (2, 2)]
+    let _ = Array.forEach(offsets, offset => {
+      let (dr, dc) = offset
+      let r = 1 + dr
+      let c = 1 + dc
+      set_cell(grid, cols, r, c, Alive)
+    })
+  }
+  | Blinker => {
+    let offsets = [(0, 0), (0, 1), (0, 2)]
+    let _ = Array.forEach(offsets, offset => {
+      let (dr, dc) = offset
+      set_cell(grid, cols, center_r + dr, center_c - 1 + dc, Alive)
+    })
+  }
+  | Pulsar => {
+    let offsets = [
+      (-4, -1), (-4, -2), (-4, -3), (-4, 1), (-4, 2), (-4, 3),
+      (-3, -1), (-3, -2), (-3, -3), (-3, 1), (-3, 2), (-3, 3),
+      (-2, -1), (-2, -2), (-2, -3), (-2, 1), (-2, 2), (-2, 3),
+      (-1, -4), (-1, -3), (-1, -2), (-1, -1), (-1, 1), (-1, 2), (-1, 3), (-1, 4),
+      (1, -4), (1, -3), (1, -2), (1, -1), (1, 1), (1, 2), (1, 3), (1, 4),
+      (2, -1), (2, -2), (2, -3), (2, 1), (2, 2), (2, 3),
+      (3, -1), (3, -2), (3, -3), (3, 1), (3, 2), (3, 3),
+      (4, -1), (4, -2), (4, -3), (4, 1), (4, 2), (4, 3),
+    ]
+    let _ = Array.forEach(offsets, offset => {
+      let (dr, dc) = offset
+      set_cell(grid, cols, center_r + dr, center_c + dc, Alive)
+    })
+  }
+  | RPentomino => {
+    let offsets = [(0, 1), (0, 2), (1, 0), (1, 1), (2, 1)]
+    let _ = Array.forEach(offsets, offset => {
+      let (dr, dc) = offset
+      set_cell(grid, cols, center_r + dr, center_c + dc, Alive)
+    })
+  }
+  }
+  grid
+}
+
 // Simple LCG pseudo-random
 let random_state = ref(12345)
 let next_rand = () => {
@@ -85,6 +136,7 @@ type action =
   | Randomize
   | SetSpeed(int)
   | ToggleCell(int, int)
+  | LoadPreset(preset)
 
 type state = {
   grid: array<cell>,
@@ -106,6 +158,8 @@ let reducer = (state, action) =>
     let cur = get_cell(next, state.cols, r, c)
     set_cell(next, state.cols, r, c, switch cur { | Alive => Dead | Dead => Alive })
     {...state, grid: next}
+  | LoadPreset(p) =>
+    {...state, grid: load_preset(p, state.rows, state.cols), running: false}
   }
 
 let rows = 20

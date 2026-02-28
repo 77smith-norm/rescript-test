@@ -110,6 +110,43 @@ function App(props) {
           })
         ],
         className: "flex flex-col items-center gap-4 mb-6"
+      }),
+      JsxRuntime.jsxs("div", {
+        children: [
+          JsxRuntime.jsx("button", {
+            children: "Glider",
+            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "Glider"
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "Blinker",
+            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "Blinker"
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "Pulsar",
+            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "Pulsar"
+            })
+          }),
+          JsxRuntime.jsx("button", {
+            children: "R-Pentomino",
+            className: "px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium",
+            onClick: param => dispatch({
+              TAG: "LoadPreset",
+              _0: "RPentomino"
+            })
+          })
+        ],
+        className: "flex gap-2 mb-6"
       })
     ],
     className: "min-h-screen bg-slate-900 text-white flex flex-col items-center p-8"

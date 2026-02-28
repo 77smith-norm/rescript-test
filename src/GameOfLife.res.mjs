@@ -61,6 +61,299 @@ function compute_next_gen(grid, rows, cols) {
   return next;
 }
 
+function load_preset(p, rows, cols) {
+  let grid = make_grid(rows, cols);
+  let center_r = rows / 2 | 0;
+  let center_c = cols / 2 | 0;
+  switch (p) {
+    case "Glider" :
+      let offsets = [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          0
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          2
+        ]
+      ];
+      offsets.forEach(offset => {
+        let r = 1 + offset[0] | 0;
+        let c = 1 + offset[1] | 0;
+        set_cell(grid, cols, r, c, "Alive");
+      });
+      break;
+    case "Blinker" :
+      let offsets$1 = [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ]
+      ];
+      offsets$1.forEach(offset => set_cell(grid, cols, center_r + offset[0] | 0, (center_c - 1 | 0) + offset[1] | 0, "Alive"));
+      break;
+    case "Pulsar" :
+      let offsets$2 = [
+        [
+          -4,
+          -1
+        ],
+        [
+          -4,
+          -2
+        ],
+        [
+          -4,
+          -3
+        ],
+        [
+          -4,
+          1
+        ],
+        [
+          -4,
+          2
+        ],
+        [
+          -4,
+          3
+        ],
+        [
+          -3,
+          -1
+        ],
+        [
+          -3,
+          -2
+        ],
+        [
+          -3,
+          -3
+        ],
+        [
+          -3,
+          1
+        ],
+        [
+          -3,
+          2
+        ],
+        [
+          -3,
+          3
+        ],
+        [
+          -2,
+          -1
+        ],
+        [
+          -2,
+          -2
+        ],
+        [
+          -2,
+          -3
+        ],
+        [
+          -2,
+          1
+        ],
+        [
+          -2,
+          2
+        ],
+        [
+          -2,
+          3
+        ],
+        [
+          -1,
+          -4
+        ],
+        [
+          -1,
+          -3
+        ],
+        [
+          -1,
+          -2
+        ],
+        [
+          -1,
+          -1
+        ],
+        [
+          -1,
+          1
+        ],
+        [
+          -1,
+          2
+        ],
+        [
+          -1,
+          3
+        ],
+        [
+          -1,
+          4
+        ],
+        [
+          1,
+          -4
+        ],
+        [
+          1,
+          -3
+        ],
+        [
+          1,
+          -2
+        ],
+        [
+          1,
+          -1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          -1
+        ],
+        [
+          2,
+          -2
+        ],
+        [
+          2,
+          -3
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          3,
+          -1
+        ],
+        [
+          3,
+          -2
+        ],
+        [
+          3,
+          -3
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          3,
+          2
+        ],
+        [
+          3,
+          3
+        ],
+        [
+          4,
+          -1
+        ],
+        [
+          4,
+          -2
+        ],
+        [
+          4,
+          -3
+        ],
+        [
+          4,
+          1
+        ],
+        [
+          4,
+          2
+        ],
+        [
+          4,
+          3
+        ]
+      ];
+      offsets$2.forEach(offset => set_cell(grid, cols, center_r + offset[0] | 0, center_c + offset[1] | 0, "Alive"));
+      break;
+    case "RPentomino" :
+      let offsets$3 = [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ];
+      offsets$3.forEach(offset => set_cell(grid, cols, center_r + offset[0] | 0, center_c + offset[1] | 0, "Alive"));
+      break;
+  }
+  return grid;
+}
+
 let random_state = {
   contents: 12345
 };
@@ -123,29 +416,39 @@ function reducer(state, action) {
         };
     }
   } else {
-    if (action.TAG === "SetSpeed") {
-      return {
-        grid: state.grid,
-        rows: state.rows,
-        cols: state.cols,
-        running: state.running,
-        speed: action._0
-      };
+    switch (action.TAG) {
+      case "SetSpeed" :
+        return {
+          grid: state.grid,
+          rows: state.rows,
+          cols: state.cols,
+          running: state.running,
+          speed: action._0
+        };
+      case "ToggleCell" :
+        let c = action._1;
+        let r = action._0;
+        let next = state.grid.slice(0);
+        let cur = get_cell(next, state.cols, r, c);
+        let tmp;
+        tmp = cur === "Alive" ? "Dead" : "Alive";
+        set_cell(next, state.cols, r, c, tmp);
+        return {
+          grid: next,
+          rows: state.rows,
+          cols: state.cols,
+          running: state.running,
+          speed: state.speed
+        };
+      case "LoadPreset" :
+        return {
+          grid: load_preset(action._0, state.rows, state.cols),
+          rows: state.rows,
+          cols: state.cols,
+          running: false,
+          speed: state.speed
+        };
     }
-    let c = action._1;
-    let r = action._0;
-    let next = state.grid.slice(0);
-    let cur = get_cell(next, state.cols, r, c);
-    let tmp;
-    tmp = cur === "Alive" ? "Dead" : "Alive";
-    set_cell(next, state.cols, r, c, tmp);
-    return {
-      grid: next,
-      rows: state.rows,
-      cols: state.cols,
-      running: state.running,
-      speed: state.speed
-    };
   }
 }
 
@@ -169,6 +472,7 @@ export {
   set_cell,
   count_live_neighbors,
   compute_next_gen,
+  load_preset,
   random_state,
   next_rand,
   randomize_grid,

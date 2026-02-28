@@ -91,5 +91,31 @@ let make = () => {
         />
       </div>
     </div>
+    <div className="flex gap-2 mb-6">
+      <button
+        onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.Glider))}
+        className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium"
+      >
+        {React.string("Glider")}
+      </button>
+      <button
+        onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.Blinker))}
+        className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium"
+      >
+        {React.string("Blinker")}
+      </button>
+      <button
+        onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.Pulsar))}
+        className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium"
+      >
+        {React.string("Pulsar")}
+      </button>
+      <button
+        onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.RPentomino))}
+        className="px-4 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium"
+      >
+        {React.string("R-Pentomino")}
+      </button>
+    </div>
   </div>
 }
