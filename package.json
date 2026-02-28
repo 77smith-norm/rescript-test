@@ -9,7 +9,9 @@
     "res:dev": "rescript watch",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "rescript && vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@rescript/react": "^0.14.0",
@@ -21,7 +23,9 @@
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.12",
     "@vitejs/plugin-react": "^5.0.2",
+    "rescript-vitest": "^2.1.1",
     "tailwindcss": "^4.1.12",
-    "vite": "^7.1.0"
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4"
   }
 }

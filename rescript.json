@@ -4,6 +4,10 @@
     {
       "dir": "src",
       "subdirs": true
+    },
+    {
+      "dir": "__tests__",
+      "type": "dev"
     }
   ],
   "package-specs": [
@@ -19,5 +23,8 @@
   "dependencies": [
     "@rescript/react"
   ],
-  "compiler-flags": []
+  "compiler-flags": [],
+  "dev-dependencies": [
+    "rescript-vitest"
+  ]
 }
