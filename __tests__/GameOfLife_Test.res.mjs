@@ -219,4 +219,89 @@ Vitest.describe("count_alive", undefined, undefined, undefined, undefined, undef
   });
 });
 
+Vitest.describe("count_live_neighbors — toroidal wrap-around", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("top-left corner (0,0) wraps to see bottom-right corner (rows-1, cols-1)", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 4, 4, "Alive");
+    t.expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 0)).toBe(1);
+  });
+  Vitest.test("top row wraps to see bottom row as neighbor", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 4, 2, "Alive");
+    t.expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 2)).toBe(1);
+  });
+  Vitest.test("bottom row wraps to see top row as neighbor", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 0, 2, "Alive");
+    t.expect(GameOfLife.count_live_neighbors(grid, 5, 5, 4, 2)).toBe(1);
+  });
+  Vitest.test("left column wraps to see right column as neighbor", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 2, 4, "Alive");
+    t.expect(GameOfLife.count_live_neighbors(grid, 5, 5, 2, 0)).toBe(1);
+  });
+  Vitest.test("right column wraps to see left column as neighbor", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 2, 0, "Alive");
+    t.expect(GameOfLife.count_live_neighbors(grid, 5, 5, 2, 4)).toBe(1);
+  });
+  Vitest.test("corner cell always has exactly 8 neighbors (toroidal, not 3 like finite)", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let r = 0;
+    while (r < 5) {
+      let c = 0;
+      while (c < 5) {
+        if (r !== 0 || c !== 0) {
+          GameOfLife.set_cell(grid, 5, r, c, "Alive");
+        }
+        c = c + 1 | 0;
+      };
+      r = r + 1 | 0;
+    };
+    t.expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 0)).toBe(8);
+  });
+  Vitest.test("edge cell always has exactly 8 neighbors (toroidal, not 5 like finite)", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let r = 0;
+    while (r < 5) {
+      let c = 0;
+      while (c < 5) {
+        if (r !== 0 || c !== 2) {
+          GameOfLife.set_cell(grid, 5, r, c, "Alive");
+        }
+        c = c + 1 | 0;
+      };
+      r = r + 1 | 0;
+    };
+    t.expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 2)).toBe(8);
+  });
+});
+
+Vitest.describe("compute_next_gen — toroidal wrap-around", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("blinker at bottom edge wraps: vertical arm appears at top row", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(7, 7);
+    GameOfLife.set_cell(grid, 7, 6, 2, "Alive");
+    GameOfLife.set_cell(grid, 7, 6, 3, "Alive");
+    GameOfLife.set_cell(grid, 7, 6, 4, "Alive");
+    let next = GameOfLife.compute_next_gen(grid, 7, 7);
+    t.expect(GameOfLife.get_cell(next, 7, 5, 3)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(next, 7, 6, 3)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(next, 7, 0, 3)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(next, 7, 6, 2)).toBe("Dead");
+    t.expect(GameOfLife.get_cell(next, 7, 6, 4)).toBe("Dead");
+  });
+  Vitest.test("blinker at right edge wraps: vertical arm appears at left column", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(7, 7);
+    GameOfLife.set_cell(grid, 7, 2, 6, "Alive");
+    GameOfLife.set_cell(grid, 7, 3, 6, "Alive");
+    GameOfLife.set_cell(grid, 7, 4, 6, "Alive");
+    let next = GameOfLife.compute_next_gen(grid, 7, 7);
+    t.expect(GameOfLife.get_cell(next, 7, 3, 5)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(next, 7, 3, 6)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(next, 7, 3, 0)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(next, 7, 2, 6)).toBe("Dead");
+    t.expect(GameOfLife.get_cell(next, 7, 4, 6)).toBe("Dead");
+  });
+});
+
 /*  Not a pure module */

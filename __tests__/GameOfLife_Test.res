@@ -258,3 +258,111 @@ describe("count_alive", () => {
     t->expect(GameOfLife.count_alive(grid))->Expect.toBe(9)
   })
 })
+
+// ── count_live_neighbors — TOROIDAL (wrap-around) ────────────────────────────
+// These tests define Option B: toroidal edges.
+// They FAIL with the current finite-boundary implementation.
+// They must ALL PASS after the toroidal change.
+
+describe("count_live_neighbors — toroidal wrap-around", () => {
+  test("top-left corner (0,0) wraps to see bottom-right corner (rows-1, cols-1)", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid, 5, 4, 4, GameOfLife.Alive)
+    t->expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 0))->Expect.toBe(1)
+  })
+
+  test("top row wraps to see bottom row as neighbor", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid, 5, 4, 2, GameOfLife.Alive)
+    t->expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 2))->Expect.toBe(1)
+  })
+
+  test("bottom row wraps to see top row as neighbor", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid, 5, 0, 2, GameOfLife.Alive)
+    t->expect(GameOfLife.count_live_neighbors(grid, 5, 5, 4, 2))->Expect.toBe(1)
+  })
+
+  test("left column wraps to see right column as neighbor", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid, 5, 2, 4, GameOfLife.Alive)
+    t->expect(GameOfLife.count_live_neighbors(grid, 5, 5, 2, 0))->Expect.toBe(1)
+  })
+
+  test("right column wraps to see left column as neighbor", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid, 5, 2, 0, GameOfLife.Alive)
+    t->expect(GameOfLife.count_live_neighbors(grid, 5, 5, 2, 4))->Expect.toBe(1)
+  })
+
+  test("corner cell always has exactly 8 neighbors (toroidal, not 3 like finite)", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    // Set all cells except (0,0) alive
+    let r = ref(0)
+    while r.contents < 5 {
+      let c = ref(0)
+      while c.contents < 5 {
+        if !(r.contents == 0 && c.contents == 0) {
+          GameOfLife.set_cell(grid, 5, r.contents, c.contents, GameOfLife.Alive)
+        }
+        c.contents = c.contents + 1
+      }
+      r.contents = r.contents + 1
+    }
+    t->expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 0))->Expect.toBe(8)
+  })
+
+  test("edge cell always has exactly 8 neighbors (toroidal, not 5 like finite)", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    // Set all cells except top-edge (0,2) alive
+    let r = ref(0)
+    while r.contents < 5 {
+      let c = ref(0)
+      while c.contents < 5 {
+        if !(r.contents == 0 && c.contents == 2) {
+          GameOfLife.set_cell(grid, 5, r.contents, c.contents, GameOfLife.Alive)
+        }
+        c.contents = c.contents + 1
+      }
+      r.contents = r.contents + 1
+    }
+    t->expect(GameOfLife.count_live_neighbors(grid, 5, 5, 0, 2))->Expect.toBe(8)
+  })
+})
+
+describe("compute_next_gen — toroidal wrap-around", () => {
+  test("blinker at bottom edge wraps: vertical arm appears at top row", t => {
+    // Horizontal blinker at last row: (6,2), (6,3), (6,4) in a 7x7 grid
+    // After 1 gen → vertical blinker at col 3: rows 5, 6, and 0 (wrapped)
+    let grid = GameOfLife.make_grid(7, 7)
+    GameOfLife.set_cell(grid, 7, 6, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 7, 6, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 7, 6, 4, GameOfLife.Alive)
+    let next = GameOfLife.compute_next_gen(grid, 7, 7)
+    t->expect(GameOfLife.get_cell(next, 7, 5, 3))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_cell(next, 7, 6, 3))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_cell(next, 7, 0, 3))->Expect.toBe(GameOfLife.Alive)
+    // old horizontal arms die
+    t->expect(GameOfLife.get_cell(next, 7, 6, 2))->Expect.toBe(GameOfLife.Dead)
+    t->expect(GameOfLife.get_cell(next, 7, 6, 4))->Expect.toBe(GameOfLife.Dead)
+  })
+
+  test("blinker at right edge wraps: vertical arm appears at left column", t => {
+    // Vertical blinker at last col: (2,6), (3,6), (4,6) in a 7x7 grid
+    // After 1 gen → horizontal blinker at row 3: cols 6, 0 (wrapped), and 5
+    // Actually: vertical blinker (col-wise) → becomes horizontal (row-wise)
+    // Vertical blinker at col 6: rows 2,3,4
+    // After 1 gen: horizontal at row 3: cols 5, 6, 0 (wrapped)
+    let grid = GameOfLife.make_grid(7, 7)
+    GameOfLife.set_cell(grid, 7, 2, 6, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 7, 3, 6, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 7, 4, 6, GameOfLife.Alive)
+    let next = GameOfLife.compute_next_gen(grid, 7, 7)
+    t->expect(GameOfLife.get_cell(next, 7, 3, 5))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_cell(next, 7, 3, 6))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_cell(next, 7, 3, 0))->Expect.toBe(GameOfLife.Alive)
+    // old vertical arms die
+    t->expect(GameOfLife.get_cell(next, 7, 2, 6))->Expect.toBe(GameOfLife.Dead)
+    t->expect(GameOfLife.get_cell(next, 7, 4, 6))->Expect.toBe(GameOfLife.Dead)
+  })
+})
