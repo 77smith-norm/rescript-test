@@ -391,6 +391,25 @@ function count_alive(grid) {
   });
 }
 
+function serialize_grid(grid) {
+  return Stdlib_Array.reduce(grid, "", (acc, cell) => {
+    let tmp;
+    tmp = cell === "Alive" ? "1" : "0";
+    return acc + tmp;
+  });
+}
+
+function deserialize_grid(s) {
+  return Stdlib_Array.fromInitializer(s.length, i => {
+    let match = s[i];
+    if (match === "1") {
+      return "Alive";
+    } else {
+      return "Dead";
+    }
+  });
+}
+
 function reducer(state, action) {
   if (typeof action !== "object") {
     switch (action) {
@@ -467,6 +486,15 @@ function reducer(state, action) {
           speed: state.speed,
           generation: 0
         };
+      case "LoadCustomPreset" :
+        return {
+          grid: action._0,
+          rows: state.rows,
+          cols: state.cols,
+          running: false,
+          speed: state.speed,
+          generation: 0
+        };
     }
   }
 }
@@ -497,6 +525,8 @@ export {
   next_rand,
   randomize_grid,
   count_alive,
+  serialize_grid,
+  deserialize_grid,
   reducer,
   rows,
   cols,

@@ -1,6 +1,10 @@
 @val external windowInnerWidth: int = "window.innerWidth"
 @val external addEventListener: (string, unit => unit) => unit = "window.addEventListener"
 @val external removeEventListener: (string, unit => unit) => unit = "window.removeEventListener"
+@val external localStorageGetItem: string => Js.Nullable.t<string> = "localStorage.getItem"
+@val external localStorageSetItem: (string, string) => unit = "localStorage.setItem"
+
+type savedPreset = {name: string, cells: string}
 
 let computeCellSize = (cols: int): int => {
   let available = windowInnerWidth - 32
@@ -8,10 +12,47 @@ let computeCellSize = (cols: int): int => {
   if size > 15 { 15 } else if size < 8 { 8 } else { size }
 }
 
+let storageKey = "gol:custom-presets"
+
+let loadFromStorage = (): array<savedPreset> => {
+  switch Js.Nullable.toOption(localStorageGetItem(storageKey)) {
+  | None => []
+  | Some(raw) =>
+    switch JSON.parseExn(raw) {
+    | json =>
+      switch json {
+      | Array(items) =>
+        items->Array.filterMap(item =>
+          switch item {
+          | Object(obj) =>
+            switch (obj->Dict.get("name"), obj->Dict.get("cells")) {
+            | (Some(String(name)), Some(String(cells))) => Some({name, cells})
+            | _ => None
+            }
+          | _ => None
+          }
+        )
+      | _ => []
+      }
+    | exception _ => []
+    }
+  }
+}
+
+let saveToStorage = (presets: array<savedPreset>): unit => {
+  let json = JSON.stringifyAny(presets->Array.map(p => {"name": p.name, "cells": p.cells}))
+  switch json {
+  | Some(s) => localStorageSetItem(storageKey, s)
+  | None => ()
+  }
+}
+
 @react.component
 let make = () => {
   let (state, dispatch) = React.useReducer(GameOfLife.reducer, GameOfLife.initial_state)
   let (cellSize, setCellSize) = React.useState(() => computeCellSize(GameOfLife.cols))
+  let (customPresets, setCustomPresets) = React.useState(() => loadFromStorage())
+  let (presetName, setPresetName) = React.useState(() => "")
 
   // Animation interval
   React.useEffect2(() => {
@@ -147,6 +188,59 @@ let make = () => {
           className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
         />
       </div>
+      <div className="flex flex-wrap gap-2 mt-4 justify-center items-center">
+        <input
+          type_="text"
+          placeholder="Preset name..."
+          value={presetName}
+          onChange={e => setPresetName(_ => ReactEvent.Form.target(e)["value"])}
+          className="px-3 py-1 bg-slate-700 rounded-lg text-sm text-white border border-slate-600 focus:outline-none"
+        />
+        <button
+          onClick={_ => {
+            let trimmed = String.trim(presetName)
+            if String.length(trimmed) > 0 && !Array.some(customPresets, p => p.name == trimmed) {
+              let newPreset = {name: trimmed, cells: GameOfLife.serialize_grid(state.grid)}
+              let updated = Array.concat(customPresets, [newPreset])
+              setCustomPresets(_ => updated)
+              saveToStorage(updated)
+              setPresetName(_ => "")
+            }
+          }}
+          className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded-lg font-medium text-sm"
+        >
+          {React.string("Save Preset")}
+        </button>
+      </div>
+      {if Array.length(customPresets) > 0 {
+        <div className="flex flex-wrap gap-2 mt-2 justify-center">
+          {React.array(customPresets->Array.map(p =>
+            <div key={p.name} className="flex items-center gap-1">
+              <button
+                onClick={_ => {
+                  let cells = GameOfLife.deserialize_grid(p.cells)
+                  dispatch(GameOfLife.LoadCustomPreset(cells))
+                }}
+                className="px-3 py-1 bg-teal-700 hover:bg-teal-600 rounded-lg font-medium text-sm"
+              >
+                {React.string(p.name)}
+              </button>
+              <button
+                onClick={_ => {
+                  let updated = Array.filter(customPresets, q => q.name != p.name)
+                  setCustomPresets(_ => updated)
+                  saveToStorage(updated)
+                }}
+                className="px-2 py-1 bg-slate-700 hover:bg-red-700 rounded text-xs"
+              >
+                {React.string("×")}
+              </button>
+            </div>
+          ))}
+        </div>
+      } else {
+        React.null
+      }}
     </div>
   </div>
 }

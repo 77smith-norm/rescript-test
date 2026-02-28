@@ -130,6 +130,22 @@ let randomize_grid = (rows, cols) => {
 let count_alive = (grid: array<cell>): int =>
   Array.reduce(grid, 0, (acc, cell) => if cell == Alive { acc + 1 } else { acc })
 
+let serialize_grid = (grid: array<cell>): string =>
+  Array.reduce(grid, "", (acc, cell) =>
+    acc ++ switch cell {
+      | Alive => "1"
+      | Dead => "0"
+    }
+  )
+
+let deserialize_grid = (s: string): array<cell> =>
+  Array.fromInitializer(~length=String.length(s), i =>
+    switch String.get(s, i) {
+    | Some("1") => Alive
+    | _ => Dead
+    }
+  )
+
 type action =
   | Toggle
   | Step
@@ -138,6 +154,7 @@ type action =
   | SetSpeed(int)
   | ToggleCell(int, int)
   | LoadPreset(preset)
+  | LoadCustomPreset(array<cell>)
 
 type state = {
   grid: array<cell>,
@@ -162,6 +179,8 @@ let reducer = (state, action) =>
     {...state, grid: next}
   | LoadPreset(p) =>
     {...state, grid: load_preset(p, state.rows, state.cols), running: false, generation: 0}
+  | LoadCustomPreset(cells) =>
+    {...state, grid: cells, running: false, generation: 0}
   }
 
 let rows = 20

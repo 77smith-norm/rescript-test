@@ -304,4 +304,64 @@ Vitest.describe("compute_next_gen — toroidal wrap-around", undefined, undefine
   });
 });
 
+Vitest.describe("serialize_grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("empty grid serializes to all-'0' string of correct length", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(3, 4);
+    let s = GameOfLife.serialize_grid(grid);
+    t.expect(s.length).toBe(12);
+    t.expect(s).toBe("000000000000");
+  });
+  Vitest.test("Alive cell serializes to '1', Dead to '0'", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(2, 2);
+    GameOfLife.set_cell(grid, 2, 0, 0, "Alive");
+    GameOfLife.set_cell(grid, 2, 1, 1, "Alive");
+    let s = GameOfLife.serialize_grid(grid);
+    t.expect(s).toBe("1001");
+  });
+  Vitest.test("all-alive grid serializes to all-'1' string", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(2, 3);
+    GameOfLife.set_cell(grid, 3, 0, 0, "Alive");
+    GameOfLife.set_cell(grid, 3, 0, 1, "Alive");
+    GameOfLife.set_cell(grid, 3, 0, 2, "Alive");
+    GameOfLife.set_cell(grid, 3, 1, 0, "Alive");
+    GameOfLife.set_cell(grid, 3, 1, 1, "Alive");
+    GameOfLife.set_cell(grid, 3, 1, 2, "Alive");
+    let s = GameOfLife.serialize_grid(grid);
+    t.expect(s).toBe("111111");
+  });
+});
+
+Vitest.describe("deserialize_grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("all-'0' string deserializes to all-Dead grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.deserialize_grid("000000000000");
+    t.expect(GameOfLife.count_alive(grid)).toBe(0);
+  });
+  Vitest.test("'1' chars deserialize to Alive cells, '0' to Dead", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.deserialize_grid("0001");
+    t.expect(GameOfLife.count_alive(grid)).toBe(1);
+    t.expect(GameOfLife.get_cell(grid, 2, 1, 1)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, 2, 0, 0)).toBe("Dead");
+  });
+  Vitest.test("round-trip: serialize then deserialize gives identical alive count", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(original, 5, 1, 1, "Alive");
+    GameOfLife.set_cell(original, 5, 2, 3, "Alive");
+    GameOfLife.set_cell(original, 5, 4, 0, "Alive");
+    let s = GameOfLife.serialize_grid(original);
+    let restored = GameOfLife.deserialize_grid(s);
+    t.expect(GameOfLife.count_alive(restored)).toBe(3);
+  });
+  Vitest.test("round-trip: serialize then deserialize gives identical cell positions", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(4, 4);
+    GameOfLife.set_cell(original, 4, 0, 3, "Alive");
+    GameOfLife.set_cell(original, 4, 3, 0, "Alive");
+    let s = GameOfLife.serialize_grid(original);
+    let restored = GameOfLife.deserialize_grid(s);
+    t.expect(GameOfLife.get_cell(restored, 4, 0, 3)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(restored, 4, 3, 0)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(restored, 4, 0, 0)).toBe("Dead");
+    t.expect(GameOfLife.get_cell(restored, 4, 3, 3)).toBe("Dead");
+  });
+});
+
 /*  Not a pure module */

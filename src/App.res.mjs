@@ -19,6 +19,49 @@ function computeCellSize(cols) {
   }
 }
 
+let storageKey = "gol:custom-presets";
+
+function loadFromStorage() {
+  let raw = localStorage.getItem(storageKey);
+  if (raw == null) {
+    return [];
+  }
+  let json;
+  try {
+    json = JSON.parse(raw);
+  } catch (exn) {
+    return [];
+  }
+  if (Array.isArray(json)) {
+    return Stdlib_Array.filterMap(json, item => {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        return;
+      }
+      let match = item["name"];
+      let match$1 = item["cells"];
+      if (typeof match === "string" && typeof match$1 === "string") {
+        return {
+          name: match,
+          cells: match$1
+        };
+      }
+    });
+  } else {
+    return [];
+  }
+}
+
+function saveToStorage(presets) {
+  let json = JSON.stringify(presets.map(p => ({
+    name: p.name,
+    cells: p.cells
+  })));
+  if (json !== undefined) {
+    localStorage.setItem(storageKey, json);
+    return;
+  }
+}
+
 function App(props) {
   let match = React.useReducer(GameOfLife.reducer, GameOfLife.initial_state);
   let dispatch = match[1];
@@ -26,6 +69,12 @@ function App(props) {
   let match$1 = React.useState(() => computeCellSize(GameOfLife.cols));
   let setCellSize = match$1[1];
   let cellSize = match$1[0];
+  let match$2 = React.useState(() => loadFromStorage());
+  let setCustomPresets = match$2[1];
+  let customPresets = match$2[0];
+  let match$3 = React.useState(() => "");
+  let setPresetName = match$3[1];
+  let presetName = match$3[0];
   React.useEffect(() => {
     if (!state.running) {
       return;
@@ -185,7 +234,66 @@ function App(props) {
               })
             ],
             className: "flex items-center gap-2 w-full max-w-xs"
-          })
+          }),
+          JsxRuntime.jsxs("div", {
+            children: [
+              JsxRuntime.jsx("input", {
+                className: "px-3 py-1 bg-slate-700 rounded-lg text-sm text-white border border-slate-600 focus:outline-none",
+                placeholder: "Preset name...",
+                type: "text",
+                value: presetName,
+                onChange: e => setPresetName(param => e.target.value)
+              }),
+              JsxRuntime.jsx("button", {
+                children: "Save Preset",
+                className: "px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded-lg font-medium text-sm",
+                onClick: param => {
+                  let trimmed = presetName.trim();
+                  if (!(trimmed.length > 0 && !customPresets.some(p => p.name === trimmed))) {
+                    return;
+                  }
+                  let newPreset_cells = GameOfLife.serialize_grid(state.grid);
+                  let newPreset = {
+                    name: trimmed,
+                    cells: newPreset_cells
+                  };
+                  let updated = customPresets.concat([newPreset]);
+                  setCustomPresets(param => updated);
+                  saveToStorage(updated);
+                  setPresetName(param => "");
+                }
+              })
+            ],
+            className: "flex flex-wrap gap-2 mt-4 justify-center items-center"
+          }),
+          customPresets.length !== 0 ? JsxRuntime.jsx("div", {
+              children: customPresets.map(p => JsxRuntime.jsxs("div", {
+                children: [
+                  JsxRuntime.jsx("button", {
+                    children: p.name,
+                    className: "px-3 py-1 bg-teal-700 hover:bg-teal-600 rounded-lg font-medium text-sm",
+                    onClick: param => {
+                      let cells = GameOfLife.deserialize_grid(p.cells);
+                      dispatch({
+                        TAG: "LoadCustomPreset",
+                        _0: cells
+                      });
+                    }
+                  }),
+                  JsxRuntime.jsx("button", {
+                    children: "×",
+                    className: "px-2 py-1 bg-slate-700 hover:bg-red-700 rounded text-xs",
+                    onClick: param => {
+                      let updated = customPresets.filter(q => q.name !== p.name);
+                      setCustomPresets(param => updated);
+                      saveToStorage(updated);
+                    }
+                  })
+                ],
+                className: "flex items-center gap-1"
+              }, p.name)),
+              className: "flex flex-wrap gap-2 mt-2 justify-center"
+            }) : null
         ],
         className: "flex flex-col items-center gap-4 mb-6"
       })
