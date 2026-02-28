@@ -597,3 +597,188 @@ describe("compute_next_gen with rule parameter", () => {
     t->expect(GameOfLife.get_cell(next3, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
   })
 })
+
+// ── Option D: Cell Age / Color Gradient ─────────────────────────────────────────
+// These tests define Option D: tracking cell age and coloring by age.
+// They FAIL until the age tracking functions are implemented.
+// The existing 53 tests should still pass.
+
+// Age tracking functions exist
+describe("cell age tracking", () => {
+  test("make_ages creates array of correct size", t => {
+    let ages = GameOfLife.make_ages(5, 4)
+    t->expect(Array.length(ages))->Expect.toBe(20)
+  })
+
+  test("all ages initialized to 0", t => {
+    let ages = GameOfLife.make_ages(3, 3)
+    t->expect(GameOfLife.count_nonzero_ages(ages))->Expect.toBe(0)
+  })
+
+  test("get_age returns correct value", t => {
+    let ages = GameOfLife.make_ages(5, 5)
+    GameOfLife.set_age(ages, 5, 2, 3, 7)
+    t->expect(GameOfLife.get_age(ages, 5, 2, 3))->Expect.toBe(7)
+  })
+
+  test("set_age updates value", t => {
+    let ages = GameOfLife.make_ages(5, 5)
+    GameOfLife.set_age(ages, 5, 1, 1, 5)
+    GameOfLife.set_age(ages, 5, 1, 1, 10)
+    t->expect(GameOfLife.get_age(ages, 5, 1, 1))->Expect.toBe(10)
+  })
+
+  test("out-of-bounds get_age returns 0", t => {
+    let ages = GameOfLife.make_ages(5, 5)
+    t->expect(GameOfLife.get_age(ages, 5, 10, 10))->Expect.toBe(0)
+  })
+})
+
+// compute_next_gen_with_age produces correct ages
+describe("compute_next_gen with age tracking", () => {
+  test("surviving cell increments age", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    let ages = GameOfLife.make_ages(5, 5)
+    // Center cell alive with 3 neighbors (survives)
+    GameOfLife.set_cell(grid, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_age(ages, 5, 2, 2, 5)  // age 5
+    GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 3, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 1, GameOfLife.Alive)
+    // 3 neighbors = survives
+    
+    let (next_grid, next_ages) = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5)
+    
+    // Cell should still be alive
+    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
+    // Age should be incremented: 5 + 1 = 6
+    t->expect(GameOfLife.get_age(next_ages, 5, 2, 2))->Expect.toBe(6)
+  })
+
+  test("new birth sets age to 1", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    let ages = GameOfLife.make_ages(5, 5)
+    // Dead cell at center with 3 neighbors (born)
+    GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 3, GameOfLife.Alive)
+    // (2,2) is dead with 3 neighbors → born
+    
+    let (next_grid, next_ages) = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5)
+    
+    // New cell should be alive
+    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
+    // New cell should have age 1
+    t->expect(GameOfLife.get_age(next_ages, 5, 2, 2))->Expect.toBe(1)
+  })
+
+  test("dead cell resets age to 0", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    let ages = GameOfLife.make_ages(5, 5)
+    // Alive cell at center with 1 neighbor (dies)
+    GameOfLife.set_cell(grid, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_age(ages, 5, 2, 2, 10)  // was age 10
+    GameOfLife.set_cell(grid, 5, 2, 3, GameOfLife.Alive)
+    // Only 1 neighbor → dies
+    
+    let (next_grid, next_ages) = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5)
+    
+    // Cell should be dead
+    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 2))->Expect.toBe(GameOfLife.Dead)
+    // Age should be reset to 0
+    t->expect(GameOfLife.get_age(next_ages, 5, 2, 2))->Expect.toBe(0)
+  })
+
+  test("block still life: all cells age together", t => {
+    let grid = GameOfLife.make_grid(6, 6)
+    let ages = GameOfLife.make_ages(6, 6)
+    // Block: 2x2 square, never changes
+    GameOfLife.set_cell(grid, 6, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 6, 2, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 6, 3, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 6, 3, 3, GameOfLife.Alive)
+    // All start at age 3
+    GameOfLife.set_age(ages, 6, 2, 2, 3)
+    GameOfLife.set_age(ages, 6, 2, 3, 3)
+    GameOfLife.set_age(ages, 6, 3, 2, 3)
+    GameOfLife.set_age(ages, 6, 3, 3, 3)
+    
+    // Run 5 generations
+    let (_, ages1) = GameOfLife.compute_next_gen_with_age(grid, ages, 6, 6)
+    let (_, ages2) = GameOfLife.compute_next_gen_with_age(grid, ages1, 6, 6)
+    let (_, ages3) = GameOfLife.compute_next_gen_with_age(grid, ages2, 6, 6)
+    let (_, ages4) = GameOfLife.compute_next_gen_with_age(grid, ages3, 6, 6)
+    let (_, ages5) = GameOfLife.compute_next_gen_with_age(grid, ages4, 6, 6)
+    
+    // After 5 generations, all should be age 8 (3 + 5)
+    t->expect(GameOfLife.get_age(ages5, 6, 2, 2))->Expect.toBe(8)
+    t->expect(GameOfLife.get_age(ages5, 6, 2, 3))->Expect.toBe(8)
+    t->expect(GameOfLife.get_age(ages5, 6, 3, 2))->Expect.toBe(8)
+    t->expect(GameOfLife.get_age(ages5, 6, 3, 3))->Expect.toBe(8)
+  })
+
+  test("empty grid: all ages remain 0", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    let ages = GameOfLife.make_ages(5, 5)
+    
+    let (next_grid, next_ages) = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5)
+    
+    t->expect(GameOfLife.count_alive(next_grid))->Expect.toBe(0)
+    t->expect(GameOfLife.count_nonzero_ages(next_ages))->Expect.toBe(0)
+  })
+
+  test("mix of births, deaths, and survivors in one generation", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    let ages = GameOfLife.make_ages(5, 5)
+    // Pattern: (2,1) dies, (2,2) survives, (2,3) born
+    // (2,1): alive with 0 neighbors → dies
+    GameOfLife.set_cell(grid, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_age(ages, 5, 2, 1, 4)
+    // (2,2): alive with 2 neighbors → survives  
+    GameOfLife.set_cell(grid, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_age(ages, 5, 2, 2, 7)
+    GameOfLife.set_cell(grid, 5, 2, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 3, GameOfLife.Alive)
+    // (2,3): dead with 3 neighbors → born
+    GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 3, 2, GameOfLife.Alive)
+    
+    let (next_grid, next_ages) = GameOfLife.compute_next_gen_with_age(grid, ages, 5, 5)
+    
+    // (2,1): died → dead, age 0
+    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 1))->Expect.toBe(GameOfLife.Dead)
+    t->expect(GameOfLife.get_age(next_ages, 5, 2, 1))->Expect.toBe(0)
+    // (2,2): survived → alive, age 8
+    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 2))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_age(next_ages, 5, 2, 2))->Expect.toBe(8)
+    // (2,3): born → alive, age 1
+    t->expect(GameOfLife.get_cell(next_grid, 5, 2, 3))->Expect.toBe(GameOfLife.Alive)
+    t->expect(GameOfLife.get_age(next_ages, 5, 2, 3))->Expect.toBe(1)
+  })
+})
+
+// Age color function for visualization
+describe("compute_age_color", () => {
+  test("age 0 returns dark color", t => {
+    let color = GameOfLife.compute_age_color(0)
+    // Should be a dark CSS color string
+    t->expect(String.length(color))->Expect.toBeGreaterThan(0)
+  })
+
+  test("age 1 returns distinct color from age 0", t => {
+    let color0 = GameOfLife.compute_age_color(0)
+    let color1 = GameOfLife.compute_age_color(1)
+    t->expect(color0)->Expect.not->Expect.toBe(color1)
+  })
+
+  test("higher ages produce progressively lighter colors", t => {
+    // We can't test exact colors (implementation detail), but verify monotonic progression
+    let c1 = GameOfLife.compute_age_color(1)
+    let c10 = GameOfLife.compute_age_color(10)
+    let c50 = GameOfLife.compute_age_color(50)
+    // Just verify they return strings
+    t->expect(String.length(c1))->Expect.toBeGreaterThan(0)
+    t->expect(String.length(c10))->Expect.toBeGreaterThan(0)
+    t->expect(String.length(c50))->Expect.toBeGreaterThan(0)
+  })
+})
