@@ -371,3 +371,113 @@ project/
 ├── rescript.json     # Build config (was bsconfig.json)
 └── package.json
 ```
+
+---
+
+## JSX Attribute Gotchas (Learned from Game of Life)
+
+### `type` is a Reserved Keyword — Use `type_`
+
+**WRONG — parse error:**
+```res
+<input type="range" />
+```
+
+**CORRECT:**
+```res
+<input type_="range" />
+```
+
+This applies to any HTML attribute that collides with a ReScript keyword. The trailing underscore is the escape convention.
+
+### Bare Text with Special Characters in JSX
+
+The ReScript JSX parser gets confused by `:` and `=` inside bare text content. **Always wrap text children in `React.string()`**, especially if they contain punctuation.
+
+**WRONG — parse error when text contains `:`:**
+```res
+<label>Speed:</label>
+```
+
+**CORRECT:**
+```res
+<label>{React.string("Speed:")}</label>
+```
+
+### Inline Style — Record, Not JS Object
+
+The `style` prop in JSX expects a `JsxDOMStyle.t` **record** with **string** CSS values, not a JS object with int values.
+
+**WRONG — type error:**
+```res
+<div style={{"width": gridWidth, "height": gridHeight}} />
+// Error: This has type {"height": int, "width": int} but expected JsxDOMStyle.t
+```
+
+**CORRECT — unquoted keys, string values with CSS units:**
+```res
+<div style={{width: Int.toString(gridWidth) ++ "px", height: Int.toString(gridHeight) ++ "px"}} />
+```
+
+### `List.range` Does Not Exist — Use `Array.fromInitializer`
+
+There is no `List.range` in ReScript v12 stdlib. To generate an index sequence for mapping, use:
+
+```res
+// Generate indices 0..n-1 as an array
+Array.fromInitializer(~length=n, i => i)
+
+// Common pattern: render n rows
+React.array(Array.fromInitializer(~length=rows, r => renderRow(r)))
+```
+
+### Rendering Arrays in JSX — Use `React.array`
+
+`Array.map` and `Array.fromInitializer` return `array<React.element>`. JSX cannot render arrays directly — wrap them in `React.array(...)`.
+
+**WRONG — type error:**
+```res
+<div>
+  {Array.fromInitializer(~length=cols, c => renderCell(r, c))}
+</div>
+```
+
+**CORRECT:**
+```res
+<div>
+  {React.array(Array.fromInitializer(~length=cols, c => renderCell(r, c)))}
+</div>
+```
+
+### Function Definition Syntax — `=` Is Required
+
+**WRONG — parse error:**
+```res
+let renderGrid (): React.element =>
+  ...
+```
+
+**CORRECT:**
+```res
+let renderGrid = (): React.element =>
+  ...
+```
+
+### `ReactEvent.FormTarget` Does Not Exist — Use `ReactEvent.Form.target`
+
+The `ReactEvent.FormTarget` module is not part of `@rescript/react`. To read a form input's value from an onChange event:
+
+**WRONG:**
+```res
+let value = ReactEvent.FormTarget.value(e)
+```
+
+**CORRECT:**
+```res
+let handleChange = (e: ReactEvent.Form.t) => {
+  let value: string = ReactEvent.Form.target(e)["value"]
+  ...
+}
+```
+
+The `target` accessor returns `{..}` (an open object), so you index into it with `["value"]`.
