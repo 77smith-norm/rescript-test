@@ -129,6 +129,9 @@ let randomize_grid = (rows, cols) => {
   grid
 }
 
+let count_alive = (grid: array<cell>): int =>
+  Array.reduce(grid, 0, (acc, cell) => if cell == Alive { acc + 1 } else { acc })
+
 type action =
   | Toggle
   | Step
@@ -144,14 +147,15 @@ type state = {
   cols: int,
   running: bool,
   speed: int,
+  generation: int,
 }
 
 let reducer = (state, action) =>
   switch action {
   | Toggle => {...state, running: !state.running}
-  | Step   => {...state, grid: compute_next_gen(state.grid, state.rows, state.cols)}
-  | Clear  => {...state, grid: make_grid(state.rows, state.cols), running: false}
-  | Randomize => {...state, grid: randomize_grid(state.rows, state.cols)}
+  | Step   => {...state, grid: compute_next_gen(state.grid, state.rows, state.cols), generation: state.generation + 1}
+  | Clear  => {...state, grid: make_grid(state.rows, state.cols), running: false, generation: 0}
+  | Randomize => {...state, grid: randomize_grid(state.rows, state.cols), generation: 0}
   | SetSpeed(speed) => {...state, speed}
   | ToggleCell(r, c) =>
     let next = Belt.Array.copy(state.grid)
@@ -159,7 +163,7 @@ let reducer = (state, action) =>
     set_cell(next, state.cols, r, c, switch cur { | Alive => Dead | Dead => Alive })
     {...state, grid: next}
   | LoadPreset(p) =>
-    {...state, grid: load_preset(p, state.rows, state.cols), running: false}
+    {...state, grid: load_preset(p, state.rows, state.cols), running: false, generation: 0}
   }
 
 let rows = 20
@@ -171,4 +175,5 @@ let initial_state = {
   cols,
   running: false,
   speed: 100,
+  generation: 0,
 }

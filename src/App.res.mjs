@@ -65,6 +65,7 @@ function App(props) {
     }),
     className: "flex"
   }, r.toString()));
+  let liveCount = GameOfLife.count_alive(state.grid);
   let handleSpeedChange = e => {
     let value = e.target.value;
     let speed = Stdlib_Int.fromString(value, undefined);
@@ -142,6 +143,19 @@ function App(props) {
           })
         ],
         className: "flex flex-wrap gap-2 mb-4 justify-center"
+      }),
+      JsxRuntime.jsxs("div", {
+        children: [
+          JsxRuntime.jsx("span", {
+            children: "Gen: " + state.generation.toString(),
+            className: "text-slate-400"
+          }),
+          JsxRuntime.jsx("span", {
+            children: "Live: " + liveCount.toString(),
+            className: "text-slate-400"
+          })
+        ],
+        className: "flex gap-6 mb-3 text-sm font-mono"
       }),
       JsxRuntime.jsxs("div", {
         children: [

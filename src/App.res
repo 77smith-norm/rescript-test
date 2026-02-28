@@ -52,6 +52,8 @@ let make = () => {
   let renderGrid = (): React.element =>
     React.array(Array.fromInitializer(~length=state.rows, r => renderRow(r)))
 
+  let liveCount = GameOfLife.count_alive(state.grid)
+
   let handleSpeedChange = (e: ReactEvent.Form.t) => {
     let value: string = ReactEvent.Form.target(e)["value"]
     switch Int.fromString(value) {
@@ -115,6 +117,14 @@ let make = () => {
       >
         {React.string("R-Pentomino")}
       </button>
+    </div>
+    <div className="flex gap-6 mb-3 text-sm font-mono">
+      <span className="text-slate-400">
+        {React.string("Gen: " ++ Int.toString(state.generation))}
+      </span>
+      <span className="text-slate-400">
+        {React.string("Live: " ++ Int.toString(liveCount))}
+      </span>
     </div>
     <div className="flex flex-col items-center gap-4 mb-6">
       <div
