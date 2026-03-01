@@ -267,7 +267,7 @@ let encode_rle = (grid: array<cell>, rows: int, cols: int): string => {
             if runCount.contents > 1 {
               sb.contents = sb.contents ++ Int.toString(runCount.contents)
             }
-            sb.contents = sb.contents ++ Js.String.make(prevChar)
+            sb.contents = sb.contents ++ prevChar
             runChar.contents = Some(ch)
             runCount.contents = 1
           }
@@ -284,7 +284,7 @@ let encode_rle = (grid: array<cell>, rows: int, cols: int): string => {
         if runCount.contents > 1 {
           sb.contents = sb.contents ++ Int.toString(runCount.contents)
         }
-        sb.contents = sb.contents ++ Js.String.make(prevChar)
+        sb.contents = sb.contents ++ prevChar
       }
       | None => ()
     }
@@ -300,7 +300,8 @@ let parseDigits = (s: string, start: int): option<(int, int)> => {
   let len = String.length(s)
   let i = ref(start)
   let num = ref(0)
-  while i.contents < len {
+  let stop = ref(false)
+  while i.contents < len && !stop.contents {
     let ch = String.get(s, i.contents)
     switch ch {
       | Some(d) if d >= "0" && d <= "9" => {
@@ -310,7 +311,7 @@ let parseDigits = (s: string, start: int): option<(int, int)> => {
             }
         i.contents = i.contents + 1
       }
-      | _ => ()
+      | _ => stop.contents = true
     }
   }
   if i.contents > start {
@@ -343,8 +344,8 @@ let decode_rle = (s: string): option<(array<cell>, int, int)> => {
             let trimmedAfter = String.trim(afterX)
             let endIdx = String.indexOf(trimmedAfter, " ")
             let valStr = switch endIdx {
+              | -1 => trimmedAfter
               | idx => String.slice(trimmedAfter, ~start=0, ~end=idx)
-              | _ => trimmedAfter
             }
             switch Int.fromString(valStr) {
               | Some(n) => cols.contents = n
@@ -355,8 +356,8 @@ let decode_rle = (s: string): option<(array<cell>, int, int)> => {
             let trimmedAfter = String.trim(afterY)
             let endIdx = String.indexOf(trimmedAfter, " ")
             let valStr = switch endIdx {
+              | -1 => trimmedAfter
               | idx => String.slice(trimmedAfter, ~start=0, ~end=idx)
-              | _ => trimmedAfter
             }
             switch Int.fromString(valStr) {
               | Some(n) => rows.contents = n
@@ -378,17 +379,17 @@ let decode_rle = (s: string): option<(array<cell>, int, int)> => {
       let parsingBody = ref(false)
       Array.forEach(lines, line => {
         let trimmedLine = String.trim(line)
-        if !headerFound.contents && trimmedLine != "" {
-          headerFound.contents = true
+        if !parsingBody.contents && String.includes(trimmedLine, "x =") {
           parsingBody.contents = true
         }
-        if parsingBody.contents && trimmedLine != "" {
+        if parsingBody.contents && trimmedLine != "" && !String.includes(trimmedLine, "x =") {
+          currentCol.contents = 0
           let i = ref(0)
           let len = String.length(trimmedLine)
           while i.contents < len {
             let ch = String.get(trimmedLine, i.contents)
             switch ch {
-              | Some("!") => ()
+              | Some("!") => i.contents = len
               | Some("$") => {
                 currentRow.contents = currentRow.contents + 1
                 currentCol.contents = 0
@@ -417,9 +418,9 @@ let decode_rle = (s: string): option<(array<cell>, int, int)> => {
                       }
                       | _ => ()
                     }
-                    i.contents = newPos
+                    i.contents = newPos + 1
                   }
-                  | None => ()
+                  | None => i.contents = i.contents + 1
                 }
               }
               | Some("o") => {
@@ -439,9 +440,11 @@ let decode_rle = (s: string): option<(array<cell>, int, int)> => {
               | _ => i.contents = i.contents + 1
             }
           }
+          // Move to next row after processing this line
+          currentRow.contents = currentRow.contents + 1
         }
       })
-      if currentRow.contents >= rows.contents {
+      if currentRow.contents > rows.contents {
         None
       } else {
         Some((grid, rows.contents, cols.contents))

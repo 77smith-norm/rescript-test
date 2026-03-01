@@ -603,7 +603,7 @@ function encode_rle(grid, rows, cols) {
           if (runCount > 1) {
             sb = sb + runCount.toString();
           }
-          sb = sb + String(prevChar);
+          sb = sb + prevChar;
           runChar = ch;
           runCount = 1;
         }
@@ -618,7 +618,7 @@ function encode_rle(grid, rows, cols) {
       if (runCount > 1) {
         sb = sb + runCount.toString();
       }
-      sb = sb + String(prevChar$1);
+      sb = sb + prevChar$1;
     }
     sb = sb + "\n";
     r = r + 1 | 0;
@@ -631,7 +631,8 @@ function parseDigits(s, start) {
   let len = s.length;
   let i = start;
   let num = 0;
-  while (i < len) {
+  let stop = false;
+  while (i < len && !stop) {
     let ch = s[i];
     if (ch !== undefined && ch >= "0" && ch <= "9") {
       let n = Stdlib_Int.fromString(ch, undefined);
@@ -639,6 +640,8 @@ function parseDigits(s, start) {
         num = (num * 10 | 0) + n | 0;
       }
       i = i + 1 | 0;
+    } else {
+      stop = true;
     }
   };
   if (i > start) {
@@ -676,7 +679,7 @@ function decode_rle(s) {
         let afterX = p.slice(p.indexOf("x =") + 3 | 0);
         let trimmedAfter = afterX.trim();
         let endIdx = trimmedAfter.indexOf(" ");
-        let valStr = trimmedAfter.slice(0, endIdx);
+        let valStr = endIdx !== -1 ? trimmedAfter.slice(0, endIdx) : trimmedAfter;
         let n = Stdlib_Int.fromString(valStr, undefined);
         if (n !== undefined) {
           cols.contents = n;
@@ -691,7 +694,7 @@ function decode_rle(s) {
       let afterY = p.slice(p.indexOf("y =") + 3 | 0);
       let trimmedAfter$1 = afterY.trim();
       let endIdx$1 = trimmedAfter$1.indexOf(" ");
-      let valStr$1 = trimmedAfter$1.slice(0, endIdx$1);
+      let valStr$1 = endIdx$1 !== -1 ? trimmedAfter$1.slice(0, endIdx$1) : trimmedAfter$1;
       let n$1 = Stdlib_Int.fromString(valStr$1, undefined);
       if (n$1 !== undefined) {
         rows.contents = n$1;
@@ -715,13 +718,13 @@ function decode_rle(s) {
   };
   lines.forEach(line => {
     let trimmedLine = line.trim();
-    if (!headerFound.contents && trimmedLine !== "") {
-      headerFound.contents = true;
+    if (!parsingBody.contents && trimmedLine.includes("x =")) {
       parsingBody.contents = true;
     }
-    if (!(parsingBody.contents && trimmedLine !== "")) {
+    if (!(parsingBody.contents && trimmedLine !== "" && !trimmedLine.includes("x ="))) {
       return;
     }
+    currentCol.contents = 0;
     let i = 0;
     let len = trimmedLine.length;
     while (i < len) {
@@ -729,6 +732,7 @@ function decode_rle(s) {
       if (ch !== undefined) {
         switch (ch) {
           case "!" :
+            i = len;
             break;
           case "$" :
             currentRow.contents = currentRow.contents + 1 | 0;
@@ -762,7 +766,9 @@ function decode_rle(s) {
                       break;
                   }
                 }
-                i = newPos;
+                i = newPos + 1 | 0;
+              } else {
+                i = i + 1 | 0;
               }
             } else {
               switch (ch) {
@@ -789,8 +795,9 @@ function decode_rle(s) {
         i = i + 1 | 0;
       }
     };
+    currentRow.contents = currentRow.contents + 1 | 0;
   });
-  if (currentRow.contents >= rows.contents) {
+  if (currentRow.contents > rows.contents) {
     return;
   } else {
     return [
