@@ -95,6 +95,21 @@ function App(props) {
       window.removeEventListener("resize", handler);
     };
   }, []);
+  React.useEffect(() => {
+    let hash = window.location.hash();
+    if (hash.length > 0) {
+      let cleanHash = hash.slice(1);
+      let match = GameOfLife.decode_url_state(cleanHash);
+      if (match !== undefined) {
+        dispatch({
+          TAG: "LoadUrlState",
+          _0: match[0],
+          _1: match[1],
+          _2: match[2]
+        });
+      }
+    }
+  }, []);
   let gridWidth = state.cols * cellSize | 0;
   let gridHeight = state.rows * cellSize | 0;
   let renderGrid = () => Stdlib_Array.fromInitializer(state.rows, r => JsxRuntime.jsx("div", {
@@ -169,6 +184,13 @@ function App(props) {
             children: "Randomize",
             className: "px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium",
             onClick: param => dispatch("Randomize")
+          }),
+          JsxRuntime.jsx("button", {
+            children: "Share",
+            className: "px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium",
+            onClick: param => {
+              window.location.hash("#" + GameOfLife.encode_url_state(state.grid, state.rows, state.cols));
+            }
           })
         ],
         className: "flex flex-wrap gap-2 mb-4 justify-center"

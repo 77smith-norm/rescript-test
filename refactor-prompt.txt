@@ -1,0 +1,90 @@
+## Project Context
+
+A ReScript v12 + React Conway's Game of Life app with 89 passing tests and clean DCE.
+This is a REFACTORING pass only — no new features, no new functions, no API changes.
+
+## Task
+
+Review `src/GameOfLife.res` and `src/App.res` for code quality issues: duplication,
+unnecessary complexity, and places where existing helpers are not being used. Make the
+code cleaner without changing any public-facing function signatures or behavior.
+
+## Known Opportunities (start here)
+
+**1. compute_next_gen duplicates compute_next_gen_rule**
+
+`compute_next_gen` is a hand-rolled copy of `compute_next_gen_rule` with Conway hardcoded.
+It should delegate:
+
+```res
+let compute_next_gen = (grid, rows, cols) =>
+  compute_next_gen_rule(grid, rows, cols, conway)
+```
+
+This removes ~20 lines of duplicated loop code. `conway` is already defined above it.
+The existing tests for `compute_next_gen` must still pass — the behavior is identical.
+
+**2. encode_url_state duplicates serialize_grid**
+
+`encode_url_state` inline-repeats the exact same cell-to-bitstring logic that `serialize_grid`
+already implements. It should reuse the helper:
+
+```res
+let encode_url_state = (grid: array<cell>, rows: int, cols: int): string =>
+  Int.toString(rows) ++ ":" ++ Int.toString(cols) ++ ":" ++ btoa(serialize_grid(grid))
+```
+
+**3. decode_url_state duplicates deserialize_grid**
+
+`decode_url_state` rebuilds the grid from a bitstring using inline `Array.fromInitializer`.
+`deserialize_grid` already does exactly that. Replace the inline conversion with:
+
+```res
+Some((deserialize_grid(decoded), rows, cols))
+```
+
+**4. Redundant guard in decode_url_state**
+
+The pattern `| [rowStr, colStr, b64] if Array.length(parts) == 3 =>` has a redundant guard.
+A 3-element array literal pattern already guarantees length == 3. Remove the guard.
+
+## Then: Look For More
+
+After the known fixes, read the full source files and look for any other quality improvements:
+- Additional duplicated logic
+- Overly verbose expressions that have cleaner v12 equivalents
+- Inconsistent patterns across similar functions
+- Any obviously dead or unreachable code
+
+Be conservative: only change something if you're confident it's clearly better AND all tests pass.
+
+## Constraints — Critical
+
+- DO NOT change any function signature that appears in the test file
+- DO NOT remove any exported function
+- DO NOT add new functions or features — this is cleanup only
+- DO NOT change `serialize_grid` or `deserialize_grid` signatures (used in App.res)
+- After every change, the full quality gate must pass: `pnpm run check`
+- DCE output must remain `[]`
+- All 89 tests must still pass
+
+## Files
+
+- `src/GameOfLife.res` — pure game logic (primary target)
+- `src/App.res` — React UI (secondary target)
+- `__tests__/GameOfLife_Test.res` — DO NOT MODIFY
+- `.agents/skills/rescript-12/SKILL.md` — read for v12 syntax reference
+
+## Build
+
+```bash
+pnpm run check    # full gate: rescript + DCE + tests
+pnpm test         # tests only
+```
+
+## Done When
+
+1. `pnpm run check` exits 0
+2. DCE output is `[]`
+3. All 89 tests pass
+4. Committed and pushed to origin/main with message "Refactor: reduce duplication, improve code quality"

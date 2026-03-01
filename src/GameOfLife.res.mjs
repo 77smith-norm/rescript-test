@@ -119,28 +119,6 @@ function count_live_neighbors(grid, rows, cols, r, c) {
   return count;
 }
 
-function compute_next_gen(grid, rows, cols) {
-  let next = make_grid(rows, cols);
-  let r = 0;
-  while (r < rows) {
-    let c = 0;
-    while (c < cols) {
-      let n = count_live_neighbors(grid, rows, cols, r, c);
-      let match = get_cell(grid, cols, r, c);
-      let new_cell;
-      new_cell = match === "Alive" ? (
-          n < 2 || n > 3 ? "Dead" : "Alive"
-        ) : (
-          n === 3 ? "Alive" : "Dead"
-        );
-      set_cell(next, cols, r, c, new_cell);
-      c = c + 1 | 0;
-    };
-    r = r + 1 | 0;
-  };
-  return next;
-}
-
 function compute_next_gen_rule(grid, rows, cols, rule) {
   let next = make_grid(rows, cols);
   let r = 0;
@@ -161,6 +139,10 @@ function compute_next_gen_rule(grid, rows, cols, rule) {
     r = r + 1 | 0;
   };
   return next;
+}
+
+function compute_next_gen(grid, rows, cols) {
+  return compute_next_gen_rule(grid, rows, cols, conway);
 }
 
 function load_preset(p, rows, cols) {
@@ -808,6 +790,47 @@ function decode_rle(s) {
   }
 }
 
+function encode_url_state(grid, rows, cols) {
+  return rows.toString() + ":" + cols.toString() + ":" + btoa(serialize_grid(grid));
+}
+
+function safeAtob(s) {
+  try {
+    return atob(s);
+  } catch (exn) {
+    return;
+  }
+}
+
+function decode_url_state(s) {
+  let parts = s.split(":");
+  if (parts.length !== 3) {
+    return;
+  }
+  let rowStr = parts[0];
+  let colStr = parts[1];
+  let b64 = parts[2];
+  let match = Stdlib_Int.fromString(rowStr, undefined);
+  let match$1 = Stdlib_Int.fromString(colStr, undefined);
+  if (match === undefined) {
+    return;
+  }
+  if (match$1 === undefined) {
+    return;
+  }
+  if (!(match > 0 && match$1 > 0)) {
+    return;
+  }
+  let decoded = safeAtob(b64);
+  if (decoded !== undefined && decoded.length === (match * match$1 | 0)) {
+    return [
+      deserialize_grid(decoded),
+      match,
+      match$1
+    ];
+  }
+}
+
 function reducer(state, action) {
   if (typeof action !== "object") {
     switch (action) {
@@ -926,6 +949,20 @@ function reducer(state, action) {
           rule: action._0,
           ages: state.ages
         };
+      case "LoadUrlState" :
+        let cols = action._2;
+        let rows = action._1;
+        let new_ages$4 = make_ages(rows, cols);
+        return {
+          grid: action._0,
+          rows: rows,
+          cols: cols,
+          running: false,
+          speed: state.speed,
+          generation: 0,
+          rule: state.rule,
+          ages: new_ages$4
+        };
     }
   }
 }
@@ -961,8 +998,8 @@ export {
   get_cell,
   set_cell,
   count_live_neighbors,
-  compute_next_gen,
   compute_next_gen_rule,
+  compute_next_gen,
   load_preset,
   random_state,
   next_rand,
@@ -979,6 +1016,9 @@ export {
   encode_rle,
   parseDigits,
   decode_rle,
+  encode_url_state,
+  safeAtob,
+  decode_url_state,
   reducer,
   rows,
   cols,

@@ -724,4 +724,117 @@ Vitest.describe("RLE round-trip", undefined, undefined, undefined, undefined, un
   });
 });
 
+Vitest.describe("encode_url_state", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("empty grid encodes to non-empty string", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    let encoded = GameOfLife.encode_url_state(grid, 5, 5);
+    t.expect(encoded.length > 0).toBe(true);
+  });
+  Vitest.test("encoding is deterministic for identical grids", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid1 = GameOfLife.make_grid(5, 5);
+    let grid2 = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid1, 5, 1, 3, "Alive");
+    GameOfLife.set_cell(grid2, 5, 1, 3, "Alive");
+    t.expect(GameOfLife.encode_url_state(grid1, 5, 5)).toBe(GameOfLife.encode_url_state(grid2, 5, 5));
+  });
+  Vitest.test("glider produces a stable, non-empty encoding", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid, 5, 0, 1, "Alive");
+    GameOfLife.set_cell(grid, 5, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 0, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 1, "Alive");
+    GameOfLife.set_cell(grid, 5, 2, 2, "Alive");
+    let enc = GameOfLife.encode_url_state(grid, 5, 5);
+    t.expect(enc.length > 0).toBe(true);
+    t.expect(enc).toBe(GameOfLife.encode_url_state(grid, 5, 5));
+  });
+  Vitest.test("different grids produce different encodings", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid1 = GameOfLife.make_grid(5, 5);
+    let grid2 = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(grid1, 5, 0, 0, "Alive");
+    GameOfLife.set_cell(grid2, 5, 4, 4, "Alive");
+    t.expect(GameOfLife.encode_url_state(grid1, 5, 5)).not.toBe(GameOfLife.encode_url_state(grid2, 5, 5));
+  });
+});
+
+Vitest.describe("decode_url_state", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("malformed input returns None", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => t.expect(GameOfLife.decode_url_state("!!!invalid!!!")).toBe(undefined));
+  Vitest.test("empty string returns None", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => t.expect(GameOfLife.decode_url_state("")).toBe(undefined));
+  Vitest.test("random garbage returns None without crashing", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    t.expect(GameOfLife.decode_url_state("abc123!@#")).toBe(undefined);
+    t.expect(GameOfLife.decode_url_state("AAAAAAAAAA")).toBe(undefined);
+  });
+});
+
+Vitest.describe("URL state round-trip", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("empty grid round-trips correctly", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(5, 5);
+    let encoded = GameOfLife.encode_url_state(original, 5, 5);
+    let decoded = GameOfLife.decode_url_state(encoded);
+    if (decoded !== undefined) {
+      t.expect(decoded[1]).toBe(5);
+      t.expect(decoded[2]).toBe(5);
+      return t.expect(GameOfLife.count_alive(decoded[0])).toBe(0);
+    } else {
+      return t.expect("got None").toBe("expected Some");
+    }
+  });
+  Vitest.test("blinker round-trips: count and positions preserved", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(original, 5, 2, 1, "Alive");
+    GameOfLife.set_cell(original, 5, 2, 2, "Alive");
+    GameOfLife.set_cell(original, 5, 2, 3, "Alive");
+    let encoded = GameOfLife.encode_url_state(original, 5, 5);
+    let decoded = GameOfLife.decode_url_state(encoded);
+    if (decoded === undefined) {
+      return t.expect("got None").toBe("expected Some");
+    }
+    let cols = decoded[2];
+    let grid = decoded[0];
+    t.expect(decoded[1]).toBe(5);
+    t.expect(cols).toBe(5);
+    t.expect(GameOfLife.count_alive(grid)).toBe(3);
+    t.expect(GameOfLife.get_cell(grid, cols, 2, 1)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, cols, 2, 2)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, cols, 2, 3)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, cols, 0, 0)).toBe("Dead");
+  });
+  Vitest.test("corner cells preserved after round-trip", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(10, 10);
+    GameOfLife.set_cell(original, 10, 0, 0, "Alive");
+    GameOfLife.set_cell(original, 10, 3, 7, "Alive");
+    GameOfLife.set_cell(original, 10, 9, 9, "Alive");
+    let encoded = GameOfLife.encode_url_state(original, 10, 10);
+    let decoded = GameOfLife.decode_url_state(encoded);
+    if (decoded === undefined) {
+      return t.expect("got None").toBe("expected Some");
+    }
+    let cols = decoded[2];
+    let grid = decoded[0];
+    t.expect(decoded[1]).toBe(10);
+    t.expect(cols).toBe(10);
+    t.expect(GameOfLife.count_alive(grid)).toBe(3);
+    t.expect(GameOfLife.get_cell(grid, cols, 0, 0)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, cols, 3, 7)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, cols, 9, 9)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, cols, 0, 1)).toBe("Dead");
+    t.expect(GameOfLife.get_cell(grid, cols, 5, 5)).toBe("Dead");
+  });
+  Vitest.test("dimensions are preserved through round-trip", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(20, 30);
+    GameOfLife.set_cell(original, 30, 10, 15, "Alive");
+    let encoded = GameOfLife.encode_url_state(original, 20, 30);
+    let decoded = GameOfLife.decode_url_state(encoded);
+    if (decoded === undefined) {
+      return t.expect("got None").toBe("expected Some");
+    }
+    let cols = decoded[2];
+    let grid = decoded[0];
+    t.expect(decoded[1]).toBe(20);
+    t.expect(cols).toBe(30);
+    t.expect(GameOfLife.count_alive(grid)).toBe(1);
+    t.expect(GameOfLife.get_cell(grid, cols, 10, 15)).toBe("Alive");
+  });
+});
+
 /*  Not a pure module */

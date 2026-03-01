@@ -1072,3 +1072,70 @@ describe("URL state round-trip", () => {
     }
   })
 })
+
+// ============================================================
+// Option H — Mobile / Touch Support
+// ============================================================
+
+describe("cellFromTouch", () => {
+  test("maps touch at grid origin to cell (0,0)", t => {
+    switch GameOfLife.cellFromTouch(0.0, 0.0, 0.0, 0.0, 10, 5, 5) {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((r, c)) => {
+        t->expect(r)->Expect.toBe(0)
+        t->expect(c)->Expect.toBe(0)
+      }
+    }
+  })
+
+  test("maps interior touch to correct cell", t => {
+    // clientX=25, clientY=35, cellSize=10 → col=2, row=3
+    switch GameOfLife.cellFromTouch(25.0, 35.0, 0.0, 0.0, 10, 5, 5) {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((r, c)) => {
+        t->expect(r)->Expect.toBe(3)
+        t->expect(c)->Expect.toBe(2)
+      }
+    }
+  })
+
+  test("handles grid offset correctly", t => {
+    // grid at (100, 200), touch at (130, 230), cellSize=15 → col=2, row=2
+    switch GameOfLife.cellFromTouch(130.0, 230.0, 100.0, 200.0, 15, 3, 3) {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((r, c)) => {
+        t->expect(r)->Expect.toBe(2)
+        t->expect(c)->Expect.toBe(2)
+      }
+    }
+  })
+
+  test("returns None for touch right of grid", t => {
+    // col = 50/10 = 5 >= cols=5 → out of bounds
+    t->expect(GameOfLife.cellFromTouch(50.0, 10.0, 0.0, 0.0, 10, 5, 5))->Expect.toBe(None)
+  })
+
+  test("returns None for touch below grid", t => {
+    // row = 50/10 = 5 >= rows=5 → out of bounds
+    t->expect(GameOfLife.cellFromTouch(10.0, 50.0, 0.0, 0.0, 10, 5, 5))->Expect.toBe(None)
+  })
+
+  test("returns None for touch above grid", t => {
+    t->expect(GameOfLife.cellFromTouch(10.0, -1.0, 0.0, 0.0, 10, 5, 5))->Expect.toBe(None)
+  })
+
+  test("returns None for touch left of grid", t => {
+    t->expect(GameOfLife.cellFromTouch(-1.0, 10.0, 0.0, 0.0, 10, 5, 5))->Expect.toBe(None)
+  })
+
+  test("last valid cell is inside bounds", t => {
+    // col = 49/10 = 4, row = 49/10 = 4 → last valid cell
+    switch GameOfLife.cellFromTouch(49.0, 49.0, 0.0, 0.0, 10, 5, 5) {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((r, c)) => {
+        t->expect(r)->Expect.toBe(4)
+        t->expect(c)->Expect.toBe(4)
+      }
+    }
+  })
+})

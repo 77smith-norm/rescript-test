@@ -1,0 +1,82 @@
+## Project Context
+
+A ReScript v12 + React Conway's Game of Life app. We are implementing Option G: URL State / Pattern Sharing. The project uses a TDD workflow — failing tests are already committed, your job is to make them pass.
+
+## Current State
+
+- 78 tests passing before your work begins (compile will fail until you add the new functions)
+- Failing tests are already in `__tests__/GameOfLife_Test.res` at the bottom
+- Build is currently broken because `encode_url_state` and `decode_url_state` don't exist yet
+- All prior options (A-F) are complete
+
+## Task
+
+Implement URL state encoding/decoding so patterns can be shared via URL hash.
+
+### Pure Logic (GameOfLife.res)
+
+Add two new functions:
+
+  encode_url_state(grid: array<cell>, rows: int, cols: int) -> string
+  decode_url_state(s: string) -> option<(array<cell>, int, int)>
+
+Encoding strategy: Store rows, cols, and a base64-encoded bit-string of the grid.
+Format: "{rows}:{cols}:{base64bits}" where base64bits encodes each cell as a single
+character ('0' or '1') then base64-encodes the result.
+
+Use btoa and atob via external bindings:
+  @val external btoa: string -> string = "btoa"
+  @val external atob: string -> string = "atob"
+
+encode_url_state logic:
+1. Convert grid to bit string: each cell is "1" (Alive) or "0" (Dead)
+2. base64-encode with btoa
+3. Return Int.toString(rows) ++ ":" ++ Int.toString(cols) ++ ":" ++ btoa(bitStr)
+
+decode_url_state logic:
+1. Split on ":" — expect exactly 3 parts
+2. Parse rows and cols from parts 0 and 1 (Int.fromString, return None on failure)
+3. Validate rows > 0 && cols > 0
+4. Wrap atob in try/catch (it throws on invalid base64):
+     let safeAtob = (s: string): option<string> => {
+       try { Some(atob(s)) } catch { | _ => None }
+     }
+5. After atob: validate String.length(decoded) == rows * cols
+6. Map each char back to Alive/Dead
+7. Return Some((grid, rows, cols)) or None on any failure
+
+### UI (App.res)
+
+1. Add "Share" button that sets window.location.hash = encode_url_state(state.grid, state.rows, state.cols)
+2. Add React.useEffect0 that reads window.location.hash on mount — if non-empty, calls decode_url_state and dispatches LoadUrlState(grid, rows, cols)
+3. Add LoadUrlState(array<cell>, int, int) action to the reducer — sets grid, rows, cols, stops simulation
+
+External bindings for window.location.hash:
+  @val @scope(("window", "location")) external getHash: unit -> string = "hash"
+  @val @scope(("window", "location")) external setHash: string -> unit = "hash"
+
+## Files & Structure
+
+- src/GameOfLife.res — ADD encode_url_state, decode_url_state here (pure logic)
+- src/App.res — ADD Share button, useEffect0, LoadUrlState action
+- __tests__/GameOfLife_Test.res — DO NOT MODIFY (tests already written)
+- .agents/skills/rescript-12/SKILL.md — READ THIS FIRST for ReScript v12 syntax
+
+## Conventions
+
+- Build: pnpm run res:build (or: ./node_modules/.bin/rescript)
+- Full quality gate: pnpm run check
+- Tests: pnpm test
+- DO NOT modify __tests__/GameOfLife_Test.res
+- DO NOT remove or rename any existing functions
+- Do NOT use Js.String, Js.Nullable, Js.Array, or any deprecated Js.* APIs
+- Use String.make, Array.map, etc. from v12 stdlib
+- Use @val external for btoa/atob — do NOT use Js.Global
+- safeAtob MUST wrap atob in try/catch — atob throws on invalid input
+
+## Done When
+
+1. pnpm run check exits with code 0
+2. DCE output is [] (no dead code introduced)
+3. All tests pass — count increases from 78 to 93
+4. Committed and pushed to origin/main
