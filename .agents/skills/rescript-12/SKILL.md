@@ -728,6 +728,30 @@ point — it's a component definition, not a mount call.
 A 9 kB bundle means the app code was never included — likely because the entry point never
 imported any app modules.
 
+### Browser property externals — @val vs @get/@set
+
+**`@val @scope(...) external fn: unit => T = "prop"` compiles to calling the property as a function.**
+This crashes at runtime: `TypeError: window.location.hash is not a function`.
+
+```res
+// WRONG — compiles to: window.location.hash()
+@val @scope(("window", "location")) external getHash: unit => string = "hash"
+
+// CORRECT — read a browser property:
+type location
+@val @scope("window") external location: location = "location"
+@get external getHash: location => string = "hash"
+@set external setHash: (location, string) => unit = "hash"
+// Usage: getHash(location) / setHash(location, "#value")
+
+// CORRECT (alternative) — if you only need to read and the value never changes:
+@val @scope(("window", "location")) external hash: string = "hash"
+// Usage: let h = hash  (direct property access, no function call)
+```
+
+The rule: only add `unit =>` to an external if the JS side is actually a function call.
+Reading a property (`window.location.hash`, `window.innerWidth`, etc.) does not use `unit =>`.
+
 ### `__tests__/` and dev sources
 
 Test files compiled with `"type": "dev"` in `rescript.json` are treated as live by reanalyze. Symbols only referenced in tests do not produce false DCE warnings. No annotation needed.
