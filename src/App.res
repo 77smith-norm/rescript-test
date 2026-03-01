@@ -3,6 +3,8 @@
 @val external removeEventListener: (string, unit => unit) => unit = "window.removeEventListener"
 @val external localStorageGetItem: string => Nullable.t<string> = "localStorage.getItem"
 @val external localStorageSetItem: (string, string) => unit = "localStorage.setItem"
+@val @scope(("window", "location")) external getHash: unit => string = "hash"
+@val @scope(("window", "location")) external setHash: string => unit = "hash"
 
 type savedPreset = {name: string, cells: string}
 
@@ -69,6 +71,20 @@ let make = () => {
     let handler = () => setCellSize(_ => computeCellSize(GameOfLife.cols))
     addEventListener("resize", handler)
     Some(() => removeEventListener("resize", handler))
+  })
+
+  // Load state from URL hash on mount
+  React.useEffect0(() => {
+    let hash = getHash()
+    if String.length(hash) > 0 {
+      // Remove leading #
+      let cleanHash = String.slice(hash, ~start=1)
+      switch GameOfLife.decode_url_state(cleanHash) {
+      | Some((grid, rows, cols)) => dispatch(GameOfLife.LoadUrlState(grid, rows, cols))
+      | None => ()
+      }
+    }
+    None
   })
 
   let gridWidth = state.cols * cellSize
@@ -142,6 +158,12 @@ let make = () => {
         className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-lg font-medium"
       >
         {React.string("Randomize")}
+      </button>
+      <button
+        onClick={_ => setHash("#" ++ GameOfLife.encode_url_state(state.grid, state.rows, state.cols))}
+        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium"
+      >
+        {React.string("Share")}
       </button>
     </div>
     <div className="flex flex-wrap gap-2 mb-4 justify-center">

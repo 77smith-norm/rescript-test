@@ -1,3 +1,6 @@
+@val external btoa: string => string = "btoa"
+@val external atob: string => string = "atob"
+
 type cell = Alive | Dead
 
 type rule = {
@@ -453,6 +456,45 @@ let decode_rle = (s: string): option<(array<cell>, int, int)> => {
   }
 }
 
+// URL state encoding/decoding
+let encode_url_state = (grid: array<cell>, rows: int, cols: int): string => {
+  let bitStr = Array.reduce(grid, "", (acc, cell) =>
+    acc ++ switch cell {
+      | Alive => "1"
+      | Dead => "0"
+    }
+  )
+  let encoded = btoa(bitStr)
+  Int.toString(rows) ++ ":" ++ Int.toString(cols) ++ ":" ++ encoded
+}
+
+let safeAtob = (s: string): option<string> => {
+  try { Some(atob(s)) } catch { | _ => None }
+}
+
+let decode_url_state = (s: string): option<(array<cell>, int, int)> => {
+  let parts = String.split(s, ":")
+  switch parts {
+  | [rowStr, colStr, b64] if Array.length(parts) == 3 =>
+    switch (Int.fromString(rowStr), Int.fromString(colStr)) {
+    | (Some(rows), Some(cols)) if rows > 0 && cols > 0 =>
+      switch safeAtob(b64) {
+      | Some(decoded) if String.length(decoded) == rows * cols =>
+        let grid = Array.fromInitializer(~length=rows * cols, i =>
+          switch String.get(decoded, i) {
+          | Some("1") => Alive
+          | _ => Dead
+          }
+        )
+        Some((grid, rows, cols))
+      | _ => None
+      }
+    | _ => None
+    }
+  | _ => None
+  }
+}
+
 type action =
   | Toggle
   | Step
@@ -463,6 +505,7 @@ type action =
   | LoadPreset(preset)
   | LoadCustomPreset(array<cell>)
   | SetRule(rule)
+  | LoadUrlState(array<cell>, int, int)
 
 type state = {
   grid: array<cell>,
@@ -501,6 +544,9 @@ let reducer = (state, action) =>
     let new_ages = make_ages(state.rows, state.cols)
     {...state, grid: cells, ages: new_ages, running: false, generation: 0}
   | SetRule(r) => {...state, rule: r}
+  | LoadUrlState(cells, rows, cols) =>
+    let new_ages = make_ages(rows, cols)
+    {...state, grid: cells, rows, cols, ages: new_ages, running: false, generation: 0}
   }
 
 let rows = 20

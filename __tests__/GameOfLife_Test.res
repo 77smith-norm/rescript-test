@@ -977,7 +977,7 @@ describe("encode_url_state", () => {
     let grid2 = GameOfLife.make_grid(5, 5)
     GameOfLife.set_cell(grid1, 5, 0, 0, GameOfLife.Alive)
     GameOfLife.set_cell(grid2, 5, 4, 4, GameOfLife.Alive)
-    t->expect(GameOfLife.encode_url_state(grid1, 5, 5))->not->Expect.toBe(
+    t->expect(GameOfLife.encode_url_state(grid1, 5, 5))->Expect.not->Expect.toBe(
       GameOfLife.encode_url_state(grid2, 5, 5)
     )
   })
