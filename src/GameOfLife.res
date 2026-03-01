@@ -251,9 +251,15 @@ let compute_next_gen_with_age = (grid, ages, rows, cols) => {
 }
 
 let compute_age_color = (age: int): string => {
-  let lightness = 20 + (age * 3)
-  let capped_lightness = if lightness > 80 { 80 } else { lightness }
-  "hsl(200, 70%, " ++ Int.toString(capped_lightness) ++ "%)"
+  if age == 0 {
+    // Dead cell — matches bg-slate-900 so the board looks clean
+    "#0f172a"
+  } else {
+    // Alive cells: gradient from dim teal (age 1) to bright teal (older)
+    let lightness = 25 + ((age - 1) * 4)
+    let capped_lightness = if lightness > 85 { 85 } else { lightness }
+    "hsl(195, 80%, " ++ Int.toString(capped_lightness) ++ "%)"
+  }
 }
 
 // RLE encoding/decoding

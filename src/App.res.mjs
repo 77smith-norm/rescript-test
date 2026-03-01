@@ -117,8 +117,10 @@ function App(props) {
   let gridHeight = state.rows * cellSize | 0;
   let renderGrid = () => Stdlib_Array.fromInitializer(state.rows, r => JsxRuntime.jsx("div", {
     children: Stdlib_Array.fromInitializer(state.cols, c => {
+      let cell = GameOfLife.get_cell(state.grid, state.cols, r, c);
       let age = GameOfLife.get_age(state.ages, state.cols, r, c);
-      let color = GameOfLife.compute_age_color(age);
+      let color;
+      color = cell === "Alive" ? GameOfLife.compute_age_color(age === 0 ? 1 : age) : "#0f172a";
       return JsxRuntime.jsx("div", {
         className: "cursor-pointer",
         style: {

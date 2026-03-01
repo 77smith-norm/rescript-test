@@ -576,9 +576,12 @@ function compute_next_gen_with_age(grid, ages, rows, cols) {
 }
 
 function compute_age_color(age) {
-  let lightness = 20 + (age * 3 | 0) | 0;
-  let capped_lightness = lightness > 80 ? 80 : lightness;
-  return "hsl(200, 70%, " + capped_lightness.toString() + "%)";
+  if (age === 0) {
+    return "#0f172a";
+  }
+  let lightness = 25 + ((age - 1 | 0) << 2) | 0;
+  let capped_lightness = lightness > 85 ? 85 : lightness;
+  return "hsl(195, 80%, " + capped_lightness.toString() + "%)";
 }
 
 function encode_rle(grid, rows, cols) {

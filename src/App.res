@@ -104,8 +104,14 @@ let make = () => {
   let gridHeight = state.rows * cellSize
 
   let renderCell = (r, c): React.element => {
+    let cell = GameOfLife.get_cell(state.grid, state.cols, r, c)
     let age = GameOfLife.get_age(state.ages, state.cols, r, c)
-    let color = GameOfLife.compute_age_color(age)
+    // Alive cells show at minimum age-1 color so newly-placed cells (age=0) are visible.
+    // Dead cells always use dead color regardless of age.
+    let color = switch cell {
+    | Alive => GameOfLife.compute_age_color(if age == 0 { 1 } else { age })
+    | Dead => "#0f172a"
+    }
     <div
       key={Int.toString(c)}
       onClick={_ => dispatch(GameOfLife.ToggleCell(r, c))}
