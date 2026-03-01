@@ -3,8 +3,10 @@
 @val external removeEventListener: (string, unit => unit) => unit = "window.removeEventListener"
 @val external localStorageGetItem: string => Nullable.t<string> = "localStorage.getItem"
 @val external localStorageSetItem: (string, string) => unit = "localStorage.setItem"
-@val @scope(("window", "location")) external getHash: unit => string = "hash"
-@val @scope(("window", "location")) external setHash: string => unit = "hash"
+type location
+@val @scope("window") external location: location = "location"
+@get external getHash: location => string = "hash"
+@set external setHash: (location, string) => unit = "hash"
 
 type jsTouch = {clientX: float, clientY: float}
 @get external changedTouches: ReactEvent.Touch.t => array<jsTouch> = "changedTouches"
@@ -86,7 +88,7 @@ let make = () => {
 
   // Load state from URL hash on mount
   React.useEffect0(() => {
-    let hash = getHash()
+    let hash = getHash(location)
     if String.length(hash) > 0 {
       // Remove leading #
       let cleanHash = String.slice(hash, ~start=1)
@@ -177,7 +179,7 @@ let make = () => {
         {React.string("Randomize")}
       </button>
       <button
-        onClick={_ => setHash("#" ++ GameOfLife.encode_url_state(state.grid, state.rows, state.cols))}
+        onClick={_ => setHash(location, "#" ++ GameOfLife.encode_url_state(state.grid, state.rows, state.cols))}
         className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium"
       >
         {React.string("Share")}

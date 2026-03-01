@@ -99,7 +99,7 @@ function App(props) {
     };
   }, []);
   React.useEffect(() => {
-    let hash = window.location.hash();
+    let hash = window.location.hash;
     if (hash.length > 0) {
       let cleanHash = hash.slice(1);
       let match = GameOfLife.decode_url_state(cleanHash);
@@ -202,7 +202,7 @@ function App(props) {
             children: "Share",
             className: "px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg font-medium",
             onClick: param => {
-              window.location.hash("#" + GameOfLife.encode_url_state(state.grid, state.rows, state.cols));
+              window.location.hash = "#" + GameOfLife.encode_url_state(state.grid, state.rows, state.cols);
             }
           })
         ],
