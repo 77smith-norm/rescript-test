@@ -6,6 +6,14 @@
 @val @scope(("window", "location")) external getHash: unit => string = "hash"
 @val @scope(("window", "location")) external setHash: string => unit = "hash"
 
+type jsTouch = {clientX: float, clientY: float}
+@get external changedTouches: ReactEvent.Touch.t => array<jsTouch> = "changedTouches"
+
+type domRect = {left: float, top: float}
+@send external getBoundingClientRect: Dom.element => domRect = "getBoundingClientRect"
+
+@send external preventDefault: ReactEvent.Touch.t => unit = "preventDefault"
+
 type savedPreset = {name: string, cells: string}
 
 let computeCellSize = (cols: int): int => {
@@ -56,6 +64,9 @@ let make = () => {
   let (customPresets, setCustomPresets) = React.useState(() => loadFromStorage())
   let (presetName, setPresetName) = React.useState(() => "")
 
+  let gridRef: React.ref<Nullable.t<Dom.element>> = React.useRef(Nullable.null)
+  let lastDragCell: React.ref<Nullable.t<string>> = React.useRef(Nullable.null)
+
   // Animation interval
   React.useEffect2(() => {
     if state.running {
@@ -96,6 +107,12 @@ let make = () => {
     <div
       key={Int.toString(c)}
       onClick={_ => dispatch(GameOfLife.ToggleCell(r, c))}
+      onTouchEnd={e => {
+        preventDefault(e)
+        if Nullable.toOption(lastDragCell.current) == None {
+          dispatch(GameOfLife.ToggleCell(r, c))
+        }
+      }}
       className="cursor-pointer"
       style={{width: Int.toString(cellSize) ++ "px", height: Int.toString(cellSize) ++ "px", backgroundColor: color}}
     />
@@ -169,25 +186,25 @@ let make = () => {
     <div className="flex flex-wrap gap-2 mb-4 justify-center">
       <button
         onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.Glider))}
-        className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
+        className="px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
       >
         {React.string("Glider")}
       </button>
       <button
         onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.Blinker))}
-        className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
+        className="px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
       >
         {React.string("Blinker")}
       </button>
       <button
         onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.Pulsar))}
-        className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
+        className="px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
       >
         {React.string("Pulsar")}
       </button>
       <button
         onClick={_ => dispatch(GameOfLife.LoadPreset(GameOfLife.RPentomino))}
-        className="px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
+        className="px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
       >
         {React.string("R-Pentomino")}
       </button>
@@ -195,30 +212,30 @@ let make = () => {
     <div className="flex flex-wrap gap-2 mb-4 justify-center">
       <button
         onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.conway))}
-        className={if state.rule == GameOfLife.conway { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+        className={if state.rule == GameOfLife.conway { "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
       >
         {React.string("Conway")}
       </button>
       <button
         onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.highlife))}
-        className={if state.rule == GameOfLife.highlife { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+        className={if state.rule == GameOfLife.highlife { "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
       >
         {React.string("HighLife")}
       </button>
       <button
         onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.maze))}
-        className={if state.rule == GameOfLife.maze { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+        className={if state.rule == GameOfLife.maze { "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
       >
         {React.string("Maze")}
       </button>
       <button
         onClick={_ => dispatch(GameOfLife.SetRule(GameOfLife.dayAndNight))}
-        className={if state.rule == GameOfLife.dayAndNight { "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
+        className={if state.rule == GameOfLife.dayAndNight { "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" } else { "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm" }}
       >
         {React.string("Day & Night")}
       </button>
     </div>
-    <div className="flex gap-6 mb-3 text-sm font-mono">
+    <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs font-mono justify-center">
       <span className="text-slate-400">
         {React.string("Gen: " ++ Int.toString(state.generation))}
       </span>
@@ -234,8 +251,30 @@ let make = () => {
     </div>
     <div className="flex flex-col items-center gap-4 mb-6">
       <div
-        style={{width: Int.toString(gridWidth) ++ "px", height: Int.toString(gridHeight) ++ "px"}}
+        ref={ReactDOM.Ref.domRef(gridRef)}
+        style={{width: Int.toString(gridWidth) ++ "px", height: Int.toString(gridHeight) ++ "px", touchAction: "none"}}
         className="border border-slate-700"
+        onTouchMove={e => {
+          switch changedTouches(e)[0] {
+          | None => ()
+          | Some(touch) =>
+            switch Nullable.toOption(gridRef.current) {
+            | None => ()
+            | Some(el) =>
+              let rect = getBoundingClientRect(el)
+              switch GameOfLife.cellFromTouch(touch.clientX, touch.clientY, rect.left, rect.top, cellSize, state.rows, state.cols) {
+              | None => ()
+              | Some((r, c)) =>
+                let key = Int.toString(r) ++ "," ++ Int.toString(c)
+                if Nullable.toOption(lastDragCell.current) != Some(key) {
+                  lastDragCell.current = Nullable.make(key)
+                  dispatch(GameOfLife.ToggleCell(r, c))
+                }
+              }
+            }
+          }
+        }}
+        onTouchEnd={_ => lastDragCell.current = Nullable.null}
       >
         {renderGrid()}
       </div>
@@ -272,7 +311,7 @@ let make = () => {
               setPresetName(_ => "")
             }
           }}
-          className="px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded-lg font-medium text-sm"
+          className="px-3 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg font-medium text-sm"
         >
           {React.string("Save Preset")}
         </button>
@@ -286,7 +325,7 @@ let make = () => {
                   let cells = GameOfLife.deserialize_grid(p.cells)
                   dispatch(GameOfLife.LoadCustomPreset(cells))
                 }}
-                className="px-3 py-1 bg-teal-700 hover:bg-teal-600 rounded-lg font-medium text-sm"
+                className="px-3 py-2 bg-teal-700 hover:bg-teal-600 rounded-lg font-medium text-sm"
               >
                 {React.string(p.name)}
               </button>

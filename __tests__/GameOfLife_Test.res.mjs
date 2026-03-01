@@ -837,4 +837,47 @@ Vitest.describe("URL state round-trip", undefined, undefined, undefined, undefin
   });
 });
 
+Vitest.describe("cellFromTouch", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("maps touch at grid origin to cell (0,0)", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let match = GameOfLife.cellFromTouch(0.0, 0.0, 0.0, 0.0, 10, 5, 5);
+    if (match !== undefined) {
+      t.expect(match[0]).toBe(0);
+      return t.expect(match[1]).toBe(0);
+    } else {
+      return t.expect("got None").toBe("expected Some");
+    }
+  });
+  Vitest.test("maps interior touch to correct cell", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let match = GameOfLife.cellFromTouch(25.0, 35.0, 0.0, 0.0, 10, 5, 5);
+    if (match !== undefined) {
+      t.expect(match[0]).toBe(3);
+      return t.expect(match[1]).toBe(2);
+    } else {
+      return t.expect("got None").toBe("expected Some");
+    }
+  });
+  Vitest.test("handles grid offset correctly", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let match = GameOfLife.cellFromTouch(130.0, 230.0, 100.0, 200.0, 15, 3, 3);
+    if (match !== undefined) {
+      t.expect(match[0]).toBe(2);
+      return t.expect(match[1]).toBe(2);
+    } else {
+      return t.expect("got None").toBe("expected Some");
+    }
+  });
+  Vitest.test("returns None for touch right of grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => t.expect(GameOfLife.cellFromTouch(50.0, 10.0, 0.0, 0.0, 10, 5, 5)).toBe(undefined));
+  Vitest.test("returns None for touch below grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => t.expect(GameOfLife.cellFromTouch(10.0, 50.0, 0.0, 0.0, 10, 5, 5)).toBe(undefined));
+  Vitest.test("returns None for touch above grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => t.expect(GameOfLife.cellFromTouch(10.0, -1.0, 0.0, 0.0, 10, 5, 5)).toBe(undefined));
+  Vitest.test("returns None for touch left of grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => t.expect(GameOfLife.cellFromTouch(-1.0, 10.0, 0.0, 0.0, 10, 5, 5)).toBe(undefined));
+  Vitest.test("last valid cell is inside bounds", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let match = GameOfLife.cellFromTouch(49.0, 49.0, 0.0, 0.0, 10, 5, 5);
+    if (match !== undefined) {
+      t.expect(match[0]).toBe(4);
+      return t.expect(match[1]).toBe(4);
+    } else {
+      return t.expect("got None").toBe("expected Some");
+    }
+  });
+});
+
 /*  Not a pure module */

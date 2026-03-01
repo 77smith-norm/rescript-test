@@ -6,6 +6,7 @@ import * as Stdlib_Int from "@rescript/runtime/lib/es6/Stdlib_Int.js";
 import * as Stdlib_Array from "@rescript/runtime/lib/es6/Stdlib_Array.js";
 import * as Primitive_int from "@rescript/runtime/lib/es6/Primitive_int.js";
 import * as Primitive_object from "@rescript/runtime/lib/es6/Primitive_object.js";
+import * as Primitive_option from "@rescript/runtime/lib/es6/Primitive_option.js";
 import * as JsxRuntime from "react/jsx-runtime";
 
 function computeCellSize(cols) {
@@ -76,6 +77,8 @@ function App(props) {
   let match$3 = React.useState(() => "");
   let setPresetName = match$3[1];
   let presetName = match$3[0];
+  let gridRef = React.useRef(null);
+  let lastDragCell = React.useRef(null);
   React.useEffect(() => {
     if (!state.running) {
       return;
@@ -127,7 +130,17 @@ function App(props) {
           TAG: "ToggleCell",
           _0: r,
           _1: c
-        })
+        }),
+        onTouchEnd: e => {
+          e.preventDefault();
+          if (Primitive_option.fromNullable(lastDragCell.current) === undefined) {
+            return dispatch({
+              TAG: "ToggleCell",
+              _0: r,
+              _1: c
+            });
+          }
+        }
       }, c.toString());
     }),
     className: "flex"
@@ -199,7 +212,7 @@ function App(props) {
         children: [
           JsxRuntime.jsx("button", {
             children: "Glider",
-            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "LoadPreset",
               _0: "Glider"
@@ -207,7 +220,7 @@ function App(props) {
           }),
           JsxRuntime.jsx("button", {
             children: "Blinker",
-            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "LoadPreset",
               _0: "Blinker"
@@ -215,7 +228,7 @@ function App(props) {
           }),
           JsxRuntime.jsx("button", {
             children: "Pulsar",
-            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "LoadPreset",
               _0: "Pulsar"
@@ -223,7 +236,7 @@ function App(props) {
           }),
           JsxRuntime.jsx("button", {
             children: "R-Pentomino",
-            className: "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "LoadPreset",
               _0: "RPentomino"
@@ -236,7 +249,7 @@ function App(props) {
         children: [
           JsxRuntime.jsx("button", {
             children: "Conway",
-            className: Primitive_object.equal(state.rule, GameOfLife.conway) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: Primitive_object.equal(state.rule, GameOfLife.conway) ? "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "SetRule",
               _0: GameOfLife.conway
@@ -244,7 +257,7 @@ function App(props) {
           }),
           JsxRuntime.jsx("button", {
             children: "HighLife",
-            className: Primitive_object.equal(state.rule, GameOfLife.highlife) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: Primitive_object.equal(state.rule, GameOfLife.highlife) ? "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "SetRule",
               _0: GameOfLife.highlife
@@ -252,7 +265,7 @@ function App(props) {
           }),
           JsxRuntime.jsx("button", {
             children: "Maze",
-            className: Primitive_object.equal(state.rule, GameOfLife.maze) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: Primitive_object.equal(state.rule, GameOfLife.maze) ? "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "SetRule",
               _0: GameOfLife.maze
@@ -260,7 +273,7 @@ function App(props) {
           }),
           JsxRuntime.jsx("button", {
             children: "Day & Night",
-            className: Primitive_object.equal(state.rule, GameOfLife.dayAndNight) ? "px-3 py-1 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-1 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
+            className: Primitive_object.equal(state.rule, GameOfLife.dayAndNight) ? "px-3 py-2 bg-purple-700 hover:bg-purple-600 rounded-lg font-medium text-sm" : "px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm",
             onClick: param => dispatch({
               TAG: "SetRule",
               _0: GameOfLife.dayAndNight
@@ -288,16 +301,47 @@ function App(props) {
             className: "text-slate-400"
           })
         ],
-        className: "flex gap-6 mb-3 text-sm font-mono"
+        className: "flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs font-mono justify-center"
       }),
       JsxRuntime.jsxs("div", {
         children: [
           JsxRuntime.jsx("div", {
             children: renderGrid(),
+            ref: Primitive_option.some(gridRef),
             className: "border border-slate-700",
             style: {
               height: gridHeight.toString() + "px",
+              touchAction: "none",
               width: gridWidth.toString() + "px"
+            },
+            onTouchEnd: param => {
+              lastDragCell.current = null;
+            },
+            onTouchMove: e => {
+              let touch = e.changedTouches[0];
+              if (touch === undefined) {
+                return;
+              }
+              let el = gridRef.current;
+              if (el == null) {
+                return;
+              }
+              let rect = el.getBoundingClientRect();
+              let match = GameOfLife.cellFromTouch(touch.clientX, touch.clientY, rect.left, rect.top, cellSize, state.rows, state.cols);
+              if (match === undefined) {
+                return;
+              }
+              let c = match[1];
+              let r = match[0];
+              let key = r.toString() + "," + c.toString();
+              if (Primitive_object.notequal(Primitive_option.fromNullable(lastDragCell.current), key)) {
+                lastDragCell.current = key;
+                return dispatch({
+                  TAG: "ToggleCell",
+                  _0: r,
+                  _1: c
+                });
+              }
             }
           }),
           JsxRuntime.jsxs("div", {
@@ -330,7 +374,7 @@ function App(props) {
               }),
               JsxRuntime.jsx("button", {
                 children: "Save Preset",
-                className: "px-3 py-1 bg-yellow-600 hover:bg-yellow-500 rounded-lg font-medium text-sm",
+                className: "px-3 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg font-medium text-sm",
                 onClick: param => {
                   let trimmed = presetName.trim();
                   if (!(trimmed.length > 0 && !customPresets.some(p => p.name === trimmed))) {
@@ -355,7 +399,7 @@ function App(props) {
                 children: [
                   JsxRuntime.jsx("button", {
                     children: p.name,
-                    className: "px-3 py-1 bg-teal-700 hover:bg-teal-600 rounded-lg font-medium text-sm",
+                    className: "px-3 py-2 bg-teal-700 hover:bg-teal-600 rounded-lg font-medium text-sm",
                     onClick: param => {
                       let cells = GameOfLife.deserialize_grid(p.cells);
                       dispatch({

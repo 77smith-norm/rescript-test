@@ -1,0 +1,163 @@
+## Project Context
+
+ReScript v12 + React + Tailwind, Conway's Game of Life. Making the app work well on
+mobile (iPhone). Read `.agents/skills/rescript-12/SKILL.md` first for v12 syntax rules.
+
+## Task: Mobile / Touch Support (Option H)
+
+The app uses `onClick` only — no touch events, page scrolls instead of drawing cells,
+stats overflow on small screens, and buttons are too small to tap. Fix all of this.
+
+## Pure Logic (GameOfLife.res)
+
+Add ONE new function near `count_alive`:
+
+```res
+let cellFromTouch = (
+  clientX: float,
+  clientY: float,
+  gridLeft: float,
+  gridTop: float,
+  cellSize: int,
+  rows: int,
+  cols: int,
+): option<(int, int)> => {
+  let cs = Int.toFloat(cellSize)
+  let col = Float.toInt((clientX -. gridLeft) /. cs)
+  let row = Float.toInt((clientY -. gridTop) /. cs)
+  if col >= 0 && col < cols && row >= 0 && row < rows {
+    Some((row, col))
+  } else {
+    None
+  }
+}
+```
+
+`Float.toInt` truncates toward zero. For positive values this is floor division — correct
+for grid coordinate mapping.
+
+## UI (App.res)
+
+### New externals to add at the top
+
+```res
+type jsTouch = {clientX: float, clientY: float}
+@get external changedTouches: ReactEvent.Touch.t => array<jsTouch> = "changedTouches"
+
+type domRect = {left: float, top: float}
+@send external getBoundingClientRect: Dom.element => domRect = "getBoundingClientRect"
+
+@send external preventDefault: ReactEvent.Touch.t => unit = "preventDefault"
+```
+
+### New refs inside `make` (add alongside existing state)
+
+```res
+let gridRef: React.ref<Nullable.t<Dom.element>> = React.useRef(Nullable.null)
+let lastDragCell: React.ref<Nullable.t<string>> = React.useRef(Nullable.null)
+```
+
+### Grid container div — add ref, touch-action, and touch handlers
+
+Find the grid wrapper div (the one with `border border-slate-700`) and add:
+- `ref={ReactDOM.Ref.domRef(gridRef)}`
+- `style={{...existing styles..., touchAction: "none"}}`
+- `onTouchMove` for drag-to-draw:
+
+```res
+onTouchMove={e => {
+  switch changedTouches(e)[0] {
+  | None => ()
+  | Some(touch) =>
+    switch Nullable.toOption(gridRef.current) {
+    | None => ()
+    | Some(el) =>
+      let rect = getBoundingClientRect(el)
+      switch GameOfLife.cellFromTouch(touch.clientX, touch.clientY, rect.left, rect.top, cellSize, state.rows, state.cols) {
+      | None => ()
+      | Some((r, c)) =>
+        let key = Int.toString(r) ++ "," ++ Int.toString(c)
+        if Nullable.toOption(lastDragCell.current) != Some(key) {
+          lastDragCell.current = Nullable.make(key)
+          dispatch(GameOfLife.ToggleCell(r, c))
+        }
+      }
+    }
+  }
+}}
+```
+
+- `onTouchEnd` on the grid container (resets drag state):
+
+```res
+onTouchEnd={_ => lastDragCell.current = Nullable.null}
+```
+
+### Cell div (`renderCell`) — add onTouchEnd for tap-to-toggle
+
+```res
+onTouchEnd={e => {
+  preventDefault(e)
+  // Only toggle on tap, not at end of a drag
+  if Nullable.toOption(lastDragCell.current) == None {
+    dispatch(GameOfLife.ToggleCell(r, c))
+  }
+}}
+```
+
+Keep `onClick` on the cell — desktop mouse clicks still work.
+
+Note: `lastDragCell` is captured in the closure inside `renderCell`. Since it's a ref
+(not state), it does not need to be threaded through as an argument — just reference it
+directly.
+
+### Stats row — fix mobile overflow
+
+Current: `className="flex gap-6 mb-3 text-sm font-mono"` — too wide on phones.
+
+Replace with:
+```res
+className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs font-mono justify-center"
+```
+
+### Button tap targets — fix for iOS minimum 44px
+
+Primary buttons (`px-4 py-2`) are fine. Small buttons (`px-3 py-1`) need more height.
+Replace `py-1` with `py-2` on all preset, rule, and save preset buttons:
+
+```res
+// Preset buttons: py-1 → py-2
+"px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded-lg font-medium text-sm"
+
+// Rule buttons (both active and inactive states): py-1 → py-2
+"px-3 py-2 bg-purple-700 ..."
+"px-3 py-2 bg-slate-600 ..."
+
+// Save Preset button: py-1 → py-2
+"px-3 py-2 bg-yellow-600 ..."
+
+// Custom preset load buttons: py-1 → py-2
+"px-3 py-2 bg-teal-700 ..."
+```
+
+## Files
+
+- `src/GameOfLife.res` — ADD cellFromTouch (pure logic)
+- `src/App.res` — ADD touch externals, refs, grid touch handlers, cell onTouchEnd,
+                  fix stats row, fix button sizes
+- `__tests__/GameOfLife_Test.res` — DO NOT MODIFY (8 failing tests already written)
+- `.agents/skills/rescript-12/SKILL.md` — READ FIRST
+
+## Constraints
+
+- DO NOT modify `__tests__/GameOfLife_Test.res`
+- Keep `onClick` on cells — touch events are additive, not replacing mouse events
+- Do NOT use `Js.*` deprecated APIs
+- All existing 89 tests must keep passing; 8 new cellFromTouch tests must pass
+
+## Done When
+
+1. `pnpm run check` exits 0
+2. DCE is `[]`
+3. All 97 tests pass (89 existing + 8 new)
+4. Committed and pushed to origin/main

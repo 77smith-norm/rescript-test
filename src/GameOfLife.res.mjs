@@ -473,6 +473,22 @@ function count_alive(grid) {
   });
 }
 
+function cellFromTouch(clientX, clientY, gridLeft, gridTop, cellSize, rows, cols) {
+  let x = (clientX - gridLeft) / cellSize;
+  let y = (clientY - gridTop) / cellSize;
+  if (x < 0.0 || y < 0.0) {
+    return;
+  }
+  let col = x | 0;
+  let row = y | 0;
+  if (col >= 0 && col < cols && row >= 0 && row < rows) {
+    return [
+      row,
+      col
+    ];
+  }
+}
+
 function serialize_grid(grid) {
   return Stdlib_Array.reduce(grid, "", (acc, cell) => {
     let tmp;
@@ -1005,6 +1021,7 @@ export {
   next_rand,
   randomize_grid,
   count_alive,
+  cellFromTouch,
   serialize_grid,
   deserialize_grid,
   make_ages,

@@ -159,6 +159,31 @@ let randomize_grid = (rows, cols) => {
 let count_alive = (grid: array<cell>): int =>
   Array.reduce(grid, 0, (acc, cell) => if cell == Alive { acc + 1 } else { acc })
 
+let cellFromTouch = (
+  clientX: float,
+  clientY: float,
+  gridLeft: float,
+  gridTop: float,
+  cellSize: int,
+  rows: int,
+  cols: int,
+): option<(int, int)> => {
+  let cs = Int.toFloat(cellSize)
+  let x = (clientX -. gridLeft) /. cs
+  let y = (clientY -. gridTop) /. cs
+  if x < 0.0 || y < 0.0 {
+    None
+  } else {
+    let col = Float.toInt(x)
+    let row = Float.toInt(y)
+    if col >= 0 && col < cols && row >= 0 && row < rows {
+      Some((row, col))
+    } else {
+      None
+    }
+  }
+}
+
 let serialize_grid = (grid: array<cell>): string =>
   Array.reduce(grid, "", (acc, cell) =>
     acc ++ switch cell {
