@@ -358,6 +358,157 @@ rescript format
 4. **"This has type X but expected Y" on array access**: Check if you're writing `Some(val)` to an array that should hold raw values
 5. **"Function takes X arguments but got Y" in useEffect**: Check that both branches return the same type (e.g., both return `None`, not one returning a value and one returning `None`)
 
+
+
+## While Loop Patterns (Critical — Learned from RLE Implementation)
+
+When implementing parsers or any while loop in ReScript, every branch MUST have an exit condition. Unlike JavaScript where unhandled cases implicitly continue, ReScript requires explicit handling.
+
+### Every Case Must Increment or Break
+
+```res
+// WRONG - will cause infinite loop
+while i.contents < len {
+  let ch = String.get(s, i.contents)
+  switch ch {
+    | Some("!") => ()  // No increment! Infinite loop!
+    | Some("o") => i.contents = i.contents + 1
+    | _ => i.contents = i.contents + 1
+  }
+}
+
+// CORRECT - every case either increments or sets a definitive position
+while i.contents < len {
+  let ch = String.get(s, i.contents)
+  switch ch {
+    | Some("!") => i.contents = len  // Exit loop by setting to len
+    | Some("o") => i.contents = i.contents + 1
+    | _ => i.contents = i.contents + 1
+  }
+}
+```
+
+### parseDigits Pattern — Must Stop on Non-Digit
+
+When parsing numbers, you MUST have a stop condition when hitting a non-digit:
+
+```res
+// WRONG - will hang on non-digit
+let parseDigits = (s: string, start: int): option<(int, int)> => {
+  let i = ref(start)
+  let num = ref(0)
+  while i.contents < len {
+    let ch = String.get(s, i.contents)
+    switch ch {
+      | Some(d) if d >= "0" && d <= "9" => {
+        // process digit
+        i.contents = i.contents + 1
+      }
+      | _ => ()  // No increment! Infinite loop!
+    }
+  }
+  // ...
+}
+
+// CORRECT - use a stop flag
+let parseDigits = (s: string, start: int): option<(int, int)> => {
+  let i = ref(start)
+  let num = ref(0)
+  let stop = ref(false)
+  while i.contents < len && !stop.contents {
+    let ch = String.get(s, i.contents)
+    switch ch {
+      | Some(d) if d >= "0" && d <= "9" => {
+        // process digit
+        i.contents = i.contents + 1
+      }
+      | _ => stop.contents = true  // Exit loop cleanly
+    }
+  }
+  // ...
+}
+```
+
+### String.indexOf Returns -1 When Not Found
+
+`String.indexOf(s, pattern)` returns `-1` when the pattern is not found. This is different from some languages that return an option.
+
+```res
+// WRONG - 'idx' is a catch-all binding, matches -1 too! Subsequent arms unreachable.
+let valStr = switch endIdx {
+  | idx => String.slice(s, ~start=0, ~end=idx)  // Matches EVERYTHING including -1!
+  | _ => s  // This is DEAD CODE - unreachable!
+}
+
+// CORRECT - match the sentinel value explicitly
+let valStr = switch endIdx {
+  | -1 => s  // Not found - use whole string
+  | idx => String.slice(s, ~start=0, ~end=idx)  // Found at position idx
+}
+```
+
+### Multi-Line Parsing — Reset State Between Lines
+
+When parsing text that has multiple lines (like RLE encoding), each line may represent a new row/record:
+
+```res
+Array.forEach(lines, line => {
+  let trimmedLine = String.trim(line)
+  if !parsingBody.contents && String.includes(trimmedLine, "header") {
+    parsingBody.contents = true
+  }
+  if parsingBody.contents && trimmedLine != "" && !String.includes(trimmedLine, "header") {
+    // Each line is a new row - MUST reset column position
+    currentCol.contents = 0
+    
+    // Parse the line...
+    while i.contents < len {
+      // ...parsing logic...
+    }
+    
+    // After each line, move to next row
+    currentRow.contents = currentRow.contents + 1
+  }
+})
+```
+
+### After Digit+Char Run, Skip the Char
+
+When parsing patterns like "3o" (3 alive cells), after processing the run, you must skip past the character that defined the run:
+
+```res
+// parseDigits returns (number, positionAfterDigits)
+// For "3o" starting at position 1: returns (3, 2) - stopped at "o"
+switch parseDigits(trimmedLine, i.contents) {
+  | Some((num, newPos)) => {
+    let nextCh = String.get(trimmedLine, newPos)
+    // Process num cells of type nextCh...
+    
+    // CRITICAL: skip past the char we just processed
+    i.contents = newPos + 1  // Not just 'newPos' - that reprocesses the char!
+  }
+  | None => i.contents = i.contents + 1  // Also handle parse failure
+}
+```
+
+### Deprecated Js.String.make
+
+In ReScript v12, `Js.String.make` is deprecated. Use direct string handling:
+
+```res
+// WRONG
+let s = Js.String.make(someChar)  // Deprecated
+
+// CORRECT - if already a string, use it directly
+let s = someChar  // Already a string
+
+// Or use appropriate conversion
+let s = Int.toString(n)
+let s = Float.toString(f)
+```
+
+---
+
 ## Project Structure
 
 Typical ReScript project:
