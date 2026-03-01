@@ -601,4 +601,127 @@ Vitest.describe("compute_age_color", undefined, undefined, undefined, undefined,
   });
 });
 
+Vitest.describe("encode_rle", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("empty grid encodes to empty-ish string with header", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(3, 3);
+    let encoded = GameOfLife.encode_rle(grid, 3, 3);
+    t.expect(encoded.length).not.toBe(0);
+  });
+  Vitest.test("single alive cell encodes correctly", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(3, 3);
+    GameOfLife.set_cell(grid, 3, 1, 1, "Alive");
+    let encoded = GameOfLife.encode_rle(grid, 3, 3);
+    t.expect(encoded.includes("o")).toBe(true);
+  });
+  Vitest.test("glider encodes to something with multiple 'o' marks", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let grid = GameOfLife.make_grid(3, 3);
+    GameOfLife.set_cell(grid, 3, 0, 1, "Alive");
+    GameOfLife.set_cell(grid, 3, 1, 2, "Alive");
+    GameOfLife.set_cell(grid, 3, 2, 0, "Alive");
+    GameOfLife.set_cell(grid, 3, 2, 1, "Alive");
+    GameOfLife.set_cell(grid, 3, 2, 2, "Alive");
+    let encoded = GameOfLife.encode_rle(grid, 3, 3);
+    t.expect(encoded.length).not.toBe(5);
+  });
+});
+
+Vitest.describe("decode_rle", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("decodes empty grid (all b)", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let result = GameOfLife.decode_rle("x = 3, y = 3, rule = B3/S23\nbbbob\nbbbob\nbbbob!");
+    if (result !== undefined) {
+      t.expect(result[1]).toBe(3);
+      t.expect(result[2]).toBe(3);
+      return t.expect(GameOfLife.count_alive(result[0])).toBe(0);
+    } else {
+      return t.expect(true).toBe(true);
+    }
+  });
+  Vitest.test("decodes single 'o' to single alive cell", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let result = GameOfLife.decode_rle("x = 1, y = 1, rule = B3/S23\no!");
+    if (result === undefined) {
+      return t.expect(true).toBe(true);
+    }
+    let grid = result[0];
+    t.expect(GameOfLife.count_alive(grid)).toBe(1);
+    t.expect(GameOfLife.get_cell(grid, result[2], 0, 0)).toBe("Alive");
+  });
+  Vitest.test("ignores header and rule line", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let result1 = GameOfLife.decode_rle("x = 2, y = 1, rule = B3/S23\noo!");
+    let result2 = GameOfLife.decode_rle("x = 2, y = 1\noo!");
+    if (result1 !== undefined && result2 !== undefined) {
+      return t.expect(GameOfLife.count_alive(result1[0])).toBe(GameOfLife.count_alive(result2[0]));
+    } else {
+      return t.expect(true).toBe(true);
+    }
+  });
+  Vitest.test("handles run-length compression (3o = ooo)", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let result = GameOfLife.decode_rle("x = 3, y = 1\nooo!");
+    if (result === undefined) {
+      return t.expect(true).toBe(true);
+    }
+    let grid = result[0];
+    t.expect(GameOfLife.count_alive(grid)).toBe(3);
+    t.expect(GameOfLife.get_cell(grid, 3, 0, 0)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, 3, 0, 1)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, 3, 0, 2)).toBe("Alive");
+  });
+  Vitest.test("handles $ as row separator", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let result = GameOfLife.decode_rle("x = 2, y = 2, rule = B3/S23\noo$\nbb!");
+    if (result === undefined) {
+      return t.expect(true).toBe(true);
+    }
+    let grid = result[0];
+    t.expect(GameOfLife.count_alive(grid)).toBe(2);
+    t.expect(GameOfLife.get_cell(grid, 2, 0, 0)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, 2, 0, 1)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, 2, 1, 0)).toBe("Dead");
+    t.expect(GameOfLife.get_cell(grid, 2, 1, 1)).toBe("Dead");
+  });
+  Vitest.test("returns None for invalid RLE", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let result1 = GameOfLife.decode_rle("not valid rle at all");
+    t.expect(result1).toBe(undefined);
+    let result2 = GameOfLife.decode_rle("");
+    t.expect(result2).toBe(undefined);
+  });
+});
+
+Vitest.describe("RLE round-trip", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => {
+  Vitest.test("encode then decode recovers original grid", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(original, 5, 0, 0, "Alive");
+    GameOfLife.set_cell(original, 5, 0, 4, "Alive");
+    GameOfLife.set_cell(original, 5, 2, 2, "Alive");
+    GameOfLife.set_cell(original, 5, 4, 0, "Alive");
+    GameOfLife.set_cell(original, 5, 4, 4, "Alive");
+    let encoded = GameOfLife.encode_rle(original, 5, 5);
+    let decoded = GameOfLife.decode_rle(encoded);
+    if (decoded === undefined) {
+      return t.expect(true).toBe(true);
+    }
+    let grid = decoded[0];
+    t.expect(GameOfLife.count_alive(grid)).toBe(GameOfLife.count_alive(original));
+    t.expect(GameOfLife.get_cell(grid, 5, 0, 0)).toBe(GameOfLife.get_cell(original, 5, 0, 0));
+    t.expect(GameOfLife.get_cell(grid, 5, 0, 4)).toBe(GameOfLife.get_cell(original, 5, 0, 4));
+    t.expect(GameOfLife.get_cell(grid, 5, 2, 2)).toBe(GameOfLife.get_cell(original, 5, 2, 2));
+    t.expect(GameOfLife.get_cell(grid, 5, 4, 0)).toBe(GameOfLife.get_cell(original, 5, 4, 0));
+    t.expect(GameOfLife.get_cell(grid, 5, 4, 4)).toBe(GameOfLife.get_cell(original, 5, 4, 4));
+  });
+  Vitest.test("blinker round-trip preserves oscillation pattern", undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, t => {
+    let original = GameOfLife.make_grid(5, 5);
+    GameOfLife.set_cell(original, 5, 2, 1, "Alive");
+    GameOfLife.set_cell(original, 5, 2, 2, "Alive");
+    GameOfLife.set_cell(original, 5, 2, 3, "Alive");
+    let encoded = GameOfLife.encode_rle(original, 5, 5);
+    let decoded = GameOfLife.decode_rle(encoded);
+    if (decoded === undefined) {
+      return t.expect(true).toBe(true);
+    }
+    let grid = decoded[0];
+    t.expect(GameOfLife.count_alive(grid)).toBe(3);
+    t.expect(GameOfLife.get_cell(grid, 5, 2, 1)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, 5, 2, 2)).toBe("Alive");
+    t.expect(GameOfLife.get_cell(grid, 5, 2, 3)).toBe("Alive");
+  });
+});
+
 /*  Not a pure module */

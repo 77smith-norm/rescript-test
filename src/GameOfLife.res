@@ -244,6 +244,212 @@ let compute_age_color = (age: int): string => {
   "hsl(200, 70%, " ++ Int.toString(capped_lightness) ++ "%)"
 }
 
+// RLE encoding/decoding
+let encode_rle = (grid: array<cell>, rows: int, cols: int): string => {
+  let sb: ref<string> = ref("")
+  sb.contents = "x = " ++ Int.toString(cols) ++ ", y = " ++ Int.toString(rows) ++ ", rule = B3/S23" ++ "\n"
+  let r = ref(0)
+  while r.contents < rows {
+    let c = ref(0)
+    let runChar = ref(None)
+    let runCount = ref(0)
+    while c.contents < cols {
+      let cell = get_cell(grid, cols, r.contents, c.contents)
+      let ch = switch cell {
+        | Alive => "o"
+        | Dead => "b"
+      }
+      switch runChar.contents {
+        | Some(prevChar) =>
+          if prevChar == ch {
+            runCount.contents = runCount.contents + 1
+          } else {
+            if runCount.contents > 1 {
+              sb.contents = sb.contents ++ Int.toString(runCount.contents)
+            }
+            sb.contents = sb.contents ++ Js.String.make(prevChar)
+            runChar.contents = Some(ch)
+            runCount.contents = 1
+          }
+        | None => {
+          runChar.contents = Some(ch)
+          runCount.contents = 1
+        }
+      }
+      c.contents = c.contents + 1
+    }
+    // Flush remaining run
+    switch runChar.contents {
+      | Some(prevChar) => {
+        if runCount.contents > 1 {
+          sb.contents = sb.contents ++ Int.toString(runCount.contents)
+        }
+        sb.contents = sb.contents ++ Js.String.make(prevChar)
+      }
+      | None => ()
+    }
+    sb.contents = sb.contents ++ "\n"
+    r.contents = r.contents + 1
+  }
+  sb.contents = sb.contents ++ "!"
+  sb.contents
+}
+
+let parseDigits = (s: string, start: int): option<(int, int)> => {
+  // Returns (number, endPosition) or None
+  let len = String.length(s)
+  let i = ref(start)
+  let num = ref(0)
+  while i.contents < len {
+    let ch = String.get(s, i.contents)
+    switch ch {
+      | Some(d) if d >= "0" && d <= "9" => {
+        switch Int.fromString(d) {
+              | Some(n) => num.contents = num.contents * 10 + n
+              | None => ()
+            }
+        i.contents = i.contents + 1
+      }
+      | _ => ()
+    }
+  }
+  if i.contents > start {
+    Some((num.contents, i.contents))
+  } else {
+    None
+  }
+}
+
+let decode_rle = (s: string): option<(array<cell>, int, int)> => {
+  let cleaned = String.trim(s)
+  if String.length(cleaned) == 0 {
+    None
+  } else {
+    // Parse header for dimensions
+    let rows = ref(0)
+    let cols = ref(0)
+    let headerFound = ref(false)
+    let lines = String.split(cleaned, "
+")
+    Array.forEach(lines, line => {
+      let trimmedLine = String.trim(line)
+      if !headerFound.contents && String.includes(trimmedLine, "x =") {
+        // Try to extract x and y
+        let parts = String.split(trimmedLine, ",")
+        Array.forEach(parts, part => {
+          let p = String.trim(part)
+          if String.includes(p, "x =") {
+            let afterX = String.slice(p, ~start=String.indexOf(p, "x =") + 3)
+            let trimmedAfter = String.trim(afterX)
+            let endIdx = String.indexOf(trimmedAfter, " ")
+            let valStr = switch endIdx {
+              | idx => String.slice(trimmedAfter, ~start=0, ~end=idx)
+              | _ => trimmedAfter
+            }
+            switch Int.fromString(valStr) {
+              | Some(n) => cols.contents = n
+              | None => ()
+            }
+          } else if String.includes(p, "y =") {
+            let afterY = String.slice(p, ~start=String.indexOf(p, "y =") + 3)
+            let trimmedAfter = String.trim(afterY)
+            let endIdx = String.indexOf(trimmedAfter, " ")
+            let valStr = switch endIdx {
+              | idx => String.slice(trimmedAfter, ~start=0, ~end=idx)
+              | _ => trimmedAfter
+            }
+            switch Int.fromString(valStr) {
+              | Some(n) => rows.contents = n
+              | None => ()
+            }
+          }
+        })
+        headerFound.contents = true
+      }
+    })
+    
+    if rows.contents == 0 || cols.contents == 0 {
+      None
+    } else {
+      // Create grid
+      let grid = make_grid(rows.contents, cols.contents)
+      let currentRow = ref(0)
+      let currentCol = ref(0)
+      let parsingBody = ref(false)
+      Array.forEach(lines, line => {
+        let trimmedLine = String.trim(line)
+        if !headerFound.contents && trimmedLine != "" {
+          headerFound.contents = true
+          parsingBody.contents = true
+        }
+        if parsingBody.contents && trimmedLine != "" {
+          let i = ref(0)
+          let len = String.length(trimmedLine)
+          while i.contents < len {
+            let ch = String.get(trimmedLine, i.contents)
+            switch ch {
+              | Some("!") => ()
+              | Some("$") => {
+                currentRow.contents = currentRow.contents + 1
+                currentCol.contents = 0
+                i.contents = i.contents + 1
+              }
+              | Some(d) if d >= "0" && d <= "9" => {
+                switch parseDigits(trimmedLine, i.contents) {
+                  | Some((num, newPos)) => {
+                    let nextCh = String.get(trimmedLine, newPos)
+                    switch nextCh {
+                      | Some("o") => {
+                        let j = ref(0)
+                        while j.contents < num && currentCol.contents < cols.contents {
+                          set_cell(grid, cols.contents, currentRow.contents, currentCol.contents, Alive)
+                          currentCol.contents = currentCol.contents + 1
+                          j.contents = j.contents + 1
+                        }
+                      }
+                      | Some("b") => {
+                        let j = ref(0)
+                        while j.contents < num && currentCol.contents < cols.contents {
+                          set_cell(grid, cols.contents, currentRow.contents, currentCol.contents, Dead)
+                          currentCol.contents = currentCol.contents + 1
+                          j.contents = j.contents + 1
+                        }
+                      }
+                      | _ => ()
+                    }
+                    i.contents = newPos
+                  }
+                  | None => ()
+                }
+              }
+              | Some("o") => {
+                if currentCol.contents < cols.contents {
+                  set_cell(grid, cols.contents, currentRow.contents, currentCol.contents, Alive)
+                  currentCol.contents = currentCol.contents + 1
+                }
+                i.contents = i.contents + 1
+              }
+              | Some("b") => {
+                if currentCol.contents < cols.contents {
+                  set_cell(grid, cols.contents, currentRow.contents, currentCol.contents, Dead)
+                  currentCol.contents = currentCol.contents + 1
+                }
+                i.contents = i.contents + 1
+              }
+              | _ => i.contents = i.contents + 1
+            }
+          }
+        }
+      })
+      if currentRow.contents >= rows.contents {
+        None
+      } else {
+        Some((grid, rows.contents, cols.contents))
+      }
+    }
+  }
+}
+
 type action =
   | Toggle
   | Step
