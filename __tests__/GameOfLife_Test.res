@@ -937,3 +937,138 @@ describe("RLE round-trip", () => {
     }
   })
 })
+
+// ============================================================
+// Option G — URL State / Pattern Sharing
+// ============================================================
+
+describe("encode_url_state", () => {
+  test("empty grid encodes to non-empty string", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    let encoded = GameOfLife.encode_url_state(grid, 5, 5)
+    t->expect(String.length(encoded) > 0)->Expect.toBe(true)
+  })
+
+  test("encoding is deterministic for identical grids", t => {
+    let grid1 = GameOfLife.make_grid(5, 5)
+    let grid2 = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid1, 5, 1, 3, GameOfLife.Alive)
+    GameOfLife.set_cell(grid2, 5, 1, 3, GameOfLife.Alive)
+    t->expect(GameOfLife.encode_url_state(grid1, 5, 5))->Expect.toBe(
+      GameOfLife.encode_url_state(grid2, 5, 5)
+    )
+  })
+
+  test("glider produces a stable, non-empty encoding", t => {
+    let grid = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid, 5, 0, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 1, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(grid, 5, 2, 2, GameOfLife.Alive)
+    let enc = GameOfLife.encode_url_state(grid, 5, 5)
+    t->expect(String.length(enc) > 0)->Expect.toBe(true)
+    // Same call produces same result
+    t->expect(enc)->Expect.toBe(GameOfLife.encode_url_state(grid, 5, 5))
+  })
+
+  test("different grids produce different encodings", t => {
+    let grid1 = GameOfLife.make_grid(5, 5)
+    let grid2 = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(grid1, 5, 0, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(grid2, 5, 4, 4, GameOfLife.Alive)
+    t->expect(GameOfLife.encode_url_state(grid1, 5, 5))->not->Expect.toBe(
+      GameOfLife.encode_url_state(grid2, 5, 5)
+    )
+  })
+})
+
+describe("decode_url_state", () => {
+  test("malformed input returns None", t => {
+    t->expect(GameOfLife.decode_url_state("!!!invalid!!!"))->Expect.toBe(None)
+  })
+
+  test("empty string returns None", t => {
+    t->expect(GameOfLife.decode_url_state(""))->Expect.toBe(None)
+  })
+
+  test("random garbage returns None without crashing", t => {
+    t->expect(GameOfLife.decode_url_state("abc123!@#"))->Expect.toBe(None)
+    t->expect(GameOfLife.decode_url_state("AAAAAAAAAA"))->Expect.toBe(None)
+  })
+})
+
+describe("URL state round-trip", () => {
+  test("empty grid round-trips correctly", t => {
+    let original = GameOfLife.make_grid(5, 5)
+    let encoded = GameOfLife.encode_url_state(original, 5, 5)
+    let decoded = GameOfLife.decode_url_state(encoded)
+    switch decoded {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((grid, rows, cols)) => {
+        t->expect(rows)->Expect.toBe(5)
+        t->expect(cols)->Expect.toBe(5)
+        t->expect(GameOfLife.count_alive(grid))->Expect.toBe(0)
+      }
+    }
+  })
+
+  test("blinker round-trips: count and positions preserved", t => {
+    let original = GameOfLife.make_grid(5, 5)
+    GameOfLife.set_cell(original, 5, 2, 1, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 2, 2, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 5, 2, 3, GameOfLife.Alive)
+    let encoded = GameOfLife.encode_url_state(original, 5, 5)
+    let decoded = GameOfLife.decode_url_state(encoded)
+    switch decoded {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((grid, rows, cols)) => {
+        t->expect(rows)->Expect.toBe(5)
+        t->expect(cols)->Expect.toBe(5)
+        t->expect(GameOfLife.count_alive(grid))->Expect.toBe(3)
+        t->expect(GameOfLife.get_cell(grid, cols, 2, 1))->Expect.toBe(GameOfLife.Alive)
+        t->expect(GameOfLife.get_cell(grid, cols, 2, 2))->Expect.toBe(GameOfLife.Alive)
+        t->expect(GameOfLife.get_cell(grid, cols, 2, 3))->Expect.toBe(GameOfLife.Alive)
+        t->expect(GameOfLife.get_cell(grid, cols, 0, 0))->Expect.toBe(GameOfLife.Dead)
+      }
+    }
+  })
+
+  test("corner cells preserved after round-trip", t => {
+    let original = GameOfLife.make_grid(10, 10)
+    GameOfLife.set_cell(original, 10, 0, 0, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 10, 3, 7, GameOfLife.Alive)
+    GameOfLife.set_cell(original, 10, 9, 9, GameOfLife.Alive)
+    let encoded = GameOfLife.encode_url_state(original, 10, 10)
+    let decoded = GameOfLife.decode_url_state(encoded)
+    switch decoded {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((grid, rows, cols)) => {
+        t->expect(rows)->Expect.toBe(10)
+        t->expect(cols)->Expect.toBe(10)
+        t->expect(GameOfLife.count_alive(grid))->Expect.toBe(3)
+        t->expect(GameOfLife.get_cell(grid, cols, 0, 0))->Expect.toBe(GameOfLife.Alive)
+        t->expect(GameOfLife.get_cell(grid, cols, 3, 7))->Expect.toBe(GameOfLife.Alive)
+        t->expect(GameOfLife.get_cell(grid, cols, 9, 9))->Expect.toBe(GameOfLife.Alive)
+        t->expect(GameOfLife.get_cell(grid, cols, 0, 1))->Expect.toBe(GameOfLife.Dead)
+        t->expect(GameOfLife.get_cell(grid, cols, 5, 5))->Expect.toBe(GameOfLife.Dead)
+      }
+    }
+  })
+
+  test("dimensions are preserved through round-trip", t => {
+    let original = GameOfLife.make_grid(20, 30)
+    GameOfLife.set_cell(original, 30, 10, 15, GameOfLife.Alive)
+    let encoded = GameOfLife.encode_url_state(original, 20, 30)
+    let decoded = GameOfLife.decode_url_state(encoded)
+    switch decoded {
+    | None => t->expect("got None")->Expect.toBe("expected Some")
+    | Some((grid, rows, cols)) => {
+        t->expect(rows)->Expect.toBe(20)
+        t->expect(cols)->Expect.toBe(30)
+        t->expect(GameOfLife.count_alive(grid))->Expect.toBe(1)
+        t->expect(GameOfLife.get_cell(grid, cols, 10, 15))->Expect.toBe(GameOfLife.Alive)
+      }
+    }
+  })
+})
