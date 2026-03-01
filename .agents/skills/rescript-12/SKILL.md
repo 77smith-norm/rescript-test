@@ -695,17 +695,38 @@ let myFn = ...
 
 **Only use `@@live` / `@live` for items that are genuinely called from outside ReScript** (e.g. entry points, exported APIs). Do not use it to silence warnings on actual dead code — remove that code instead.
 
-### React entry points
+### React entry points — mount the app, don't just export it
 
-React component `make` functions called from `index.html` JS bootstrap (not from ReScript) will show as dead. Add `@@live` to those files:
+**The entry point `Main.res` must call `ReactDOM.Client.createRoot` to actually mount the app.
+Exporting a component function without mounting it produces a white screen with zero console errors.**
 
 ```res
-// Main.res
+// Main.res — CORRECT: mounts the app to the DOM
+@@live
+
+switch ReactDOM.querySelector("#root") {
+| None => ()
+| Some(root) =>
+  ReactDOM.Client.createRoot(root)->ReactDOM.Client.Root.render(<App />)
+}
+```
+
+```res
+// Main.res — WRONG: just exports a component, nothing ever renders
 @@live
 
 @react.component
 let make = () => <App />
+// ↑ This compiles cleanly, passes all tests, deploys successfully, and produces a white screen.
 ```
+
+`@@live` is needed on the first form to suppress DCE warnings (the querySelector call isn't
+referenced from other ReScript files). The `@react.component` form above is wrong for an entry
+point — it's a component definition, not a mount call.
+
+**Bundle size is the canary.** A correct React + ReScript build should produce a bundle > 100 kB.
+A 9 kB bundle means the app code was never included — likely because the entry point never
+imported any app modules.
 
 ### `__tests__/` and dev sources
 

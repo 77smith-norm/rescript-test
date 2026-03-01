@@ -170,7 +170,37 @@ switch GameOfLife.decode_rle(valid_rle) {
 
 Rule: The `None` branch of a success-case decode test must contain an assertion that **fails**.
 
-### 6. ReScript JSX and syntax traps (summary — full details in rescript-12 skill)
+### 6. Main.res MUST call ReactDOM.createRoot — not just export a component
+
+**This broke the deployed site for all of Options A–H.** The app compiled, all 97 tests passed,
+GitHub Actions reported green, and every deploy produced a white screen. Zero console errors.
+
+`Main.res` must mount the app to the DOM:
+
+```res
+// CORRECT — mounts the app
+@@live
+
+switch ReactDOM.querySelector("#root") {
+| None => ()
+| Some(root) =>
+  ReactDOM.Client.createRoot(root)->ReactDOM.Client.Root.render(<App />)
+}
+```
+
+```res
+// WRONG — exports a component that nothing ever calls
+@@live
+
+@react.component
+let make = () => <App />
+```
+
+**How to catch it:** Check the bundle size after `pnpm build`. A React + ReScript app
+should produce > 100 kB. A 9 kB bundle means the app code was never bundled — the entry
+point imported nothing. The CI workflow now enforces a 50 kB minimum.
+
+### 7. ReScript JSX and syntax traps (summary — full details in rescript-12 skill)
 
 - `type_="range"` not `type="range"` — `type` is a reserved keyword
 - `{React.string("Speed:")}` not `>Speed:</` — bare text with `:` breaks the parser
