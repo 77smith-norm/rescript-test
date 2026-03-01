@@ -59,6 +59,20 @@ jobs:
             console.log('Bundle size OK');
           "
 
+      - name: Smoke test (verify createRoot in bundle)
+        run: |
+          node -e "
+            const {statSync, readdirSync, readFileSync} = require('fs');
+            const files = readdirSync('dist/assets').filter(f => f.endsWith('.js'));
+            const largest = files.sort((a,b) => statSync('dist/assets/'+b).size - statSync('dist/assets/'+a).size)[0];
+            const bundle = readFileSync('dist/assets/' + largest, 'utf8');
+            if (!bundle.includes('createRoot')) {
+              console.error('ERROR: createRoot not found in bundle — app will not mount');
+              process.exit(1);
+            }
+            console.log('createRoot present (' + (statSync('dist/assets/'+largest).size/1024).toFixed(1) + ' kB) — OK');
+          "
+
       - name: Setup Pages
         uses: actions/configure-pages@v4
 

@@ -701,15 +701,33 @@ let myFn = ...
 Exporting a component function without mounting it produces a white screen with zero console errors.**
 
 ```res
-// Main.res — CORRECT: mounts the app to the DOM
+// Main.res — CORRECT: mounts the app to the DOM, with error visibility
 @@live
+
+type createRootOptions = {
+  onUncaughtError: exn => unit,
+  onCaughtError: exn => unit,
+}
+
+@module("react-dom/client")
+external createRootWithOptions: (Dom.element, createRootOptions) => ReactDOM.Client.Root.t = "createRoot"
 
 switch ReactDOM.querySelector("#root") {
 | None => ()
 | Some(root) =>
-  ReactDOM.Client.createRoot(root)->ReactDOM.Client.Root.render(<App />)
+  createRootWithOptions(root, {
+    onUncaughtError: e => Console.error2("React uncaught error:", e),
+    onCaughtError: e => Console.error2("React caught error:", e),
+  })->ReactDOM.Client.Root.render(<App />)
 }
 ```
+
+Without `onUncaughtError`, a render crash (TypeError in useEffect, bad external binding, etc.)
+produces a white screen and a `console.warn` with unreadable `%s` placeholders. The actual
+error is invisible. With `onUncaughtError`, it logs the exact TypeError and stack trace.
+
+React Strict Mode (`<React.StrictMode>`) is separately useful — it double-invokes effects in
+dev to catch non-idempotent side effects. Add it by wrapping: `.render(<React.StrictMode> <App /> </React.StrictMode>)`. It would NOT catch wrong external binding types.
 
 ```res
 // Main.res — WRONG: just exports a component, nothing ever renders
