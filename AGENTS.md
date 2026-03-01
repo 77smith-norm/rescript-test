@@ -148,7 +148,29 @@ To access browser globals in ReScript, declare them as externals:
 
 Do NOT try to access `window.innerWidth` as plain ReScript — it won't compile.
 
-### 5. ReScript JSX and syntax traps (summary — full details in rescript-12 skill)
+### 5. The None-as-Pass Anti-Pattern — NEVER DO THIS
+
+When writing tests for decode/parse functions, **`None` on a valid input must be a test failure.** Do not use trivially-true assertions in the `None` branch.
+
+**This mistake allowed a completely broken `decode_rle` to pass every test (Option F).**
+
+```res
+// WRONG — None silently passes. A broken decoder looks identical to a working one.
+switch GameOfLife.decode_rle(valid_rle) {
+| None => t->expect(true)->Expect.toBe(true)  // ← invisible failure
+| Some((grid, rows, cols)) => t->expect(rows)->Expect.toBe(5)
+}
+
+// CORRECT — None on valid input is a readable test failure.
+switch GameOfLife.decode_rle(valid_rle) {
+| None => t->expect("decode returned None")->Expect.toBe("expected Some(...)")
+| Some((grid, rows, cols)) => t->expect(rows)->Expect.toBe(5)
+}
+```
+
+Rule: The `None` branch of a success-case decode test must contain an assertion that **fails**.
+
+### 6. ReScript JSX and syntax traps (summary — full details in rescript-12 skill)
 
 - `type_="range"` not `type="range"` — `type` is a reserved keyword
 - `{React.string("Speed:")}` not `>Speed:</` — bare text with `:` breaks the parser
