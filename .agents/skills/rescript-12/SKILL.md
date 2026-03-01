@@ -785,3 +785,108 @@ When OpenCode writes localStorage or nullable code, it may use deprecated APIs. 
 | `JSON.parseExn(s)` | `JSON.parseOrThrow(s)` |
 
 Run `pnpm exec rescript-tools migrate-all .` to auto-migrate, or fix manually.
+
+---
+
+## React Compiler + ESLint Integration
+
+### What works in ReScript 12 + React Compiler
+
+| Concern | Status |
+|---------|--------|
+| ReScript 12 emits `let` (required by React Compiler) | ✅ Fixed in v12 |
+| JSX preserve mode ships | ✅ `"jsx": {"version": 4, "preserve": true}` |
+| Vite + `babel-plugin-react-compiler` processes `.res.jsx` | ✅ Works |
+| Fully automatic memoization without annotation | ⚠️ Incomplete |
+| Per-component opt-in via `@directive("'use memo'")` | ✅ Works |
+| ESLint `react-hooks/rules-of-hooks` on compiled `.res.mjs` | ✅ Works |
+| `@rescript/react` 0.14.x + React 19 | ✅ Supported |
+
+### Why auto-detection doesn't fully work
+
+The React Compiler detects components by looking for **PascalCase function names** that return
+JSX. ReScript compiled output exports `make` — lowercase — which the Compiler doesn't recognize
+as a component. The detection heuristic fails on `make()` even with JSX preserve mode.
+
+The fix: `@directive("'use memo'")` directly annotates the function body, bypassing detection:
+
+```res
+@react.component
+let make = @directive("'use memo'") (~count) => {
+  let (double, _) = React.useState(_ => 2 * count)
+  <div>{React.string(`${Int.toString(double)}`)}</div>
+}
+```
+
+### JSX preserve mode setup (for React Compiler projects)
+
+Change `rescript.json` and `vite.config.js` for preserve mode:
+
+```json
+// rescript.json — use .res.jsx suffix so Babel picks up JSX output
+{
+  "suffix": ".res.jsx",
+  "jsx": { "version": 4, "preserve": true }
+}
+```
+
+```js
+// vite.config.js
+import react from "@vitejs/plugin-react";
+export default defineConfig({
+  plugins: [
+    react({
+      include: /\.res\.jsx$/,
+      babel: { plugins: [["babel-plugin-react-compiler", {}]] },
+    }),
+  ],
+});
+```
+
+**Important:** With preserve mode + Tailwind v4, `@tailwindcss/vite` must scan `.res.jsx` files
+for class names. Verify Tailwind finds your classes in the new output format. If classes go
+missing, the `<link rel="stylesheet" href="/src/index.css">` entry point and the Vite build
+graph scan should pick them up automatically — but confirm after switching suffixes.
+
+### ESLint on compiled output
+
+`eslint-plugin-react-hooks` works on `.res.mjs` output with zero build changes.
+Use only `rules-of-hooks` — the other rules have false positives on compiled code:
+
+```js
+// eslint.config.mjs
+import reactHooks from "eslint-plugin-react-hooks";
+export default [{
+  files: ["src/**/*.res.mjs"],
+  plugins: { "react-hooks": reactHooks },
+  rules: {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "off",  // false positives on stable dispatch refs
+    "react-hooks/immutability": "off",     // false positives on event-handler side effects
+  },
+}];
+```
+
+**`exhaustive-deps` off:** `dispatch` from `useReducer` and `setState` setters are stable refs —
+the linter doesn't know this in compiled output, producing spurious warnings.
+
+**`immutability` off:** The v7 rule flags `window.location.hash = value` in click handlers as
+"modifying a variable defined outside a component." This is valid React code — event handlers
+are explicitly allowed side effects.
+
+### Quality gate command (with rescript-tools reanalyze)
+
+The standalone `reanalyze` npm package ships x86_64 only — segfaults on M1 under Rosetta.
+Use `rescript-tools reanalyze` which ships natively with `rescript@12`:
+
+```json
+"check": "rescript && rescript-tools reanalyze -dce -json && eslint src/ && vitest run"
+```
+
+### Upstream resolution paths (open)
+
+The auto-detection gap will close via one of:
+1. React Compiler adds a heuristic for `make` when the surrounding module is PascalCase
+2. ReScript preserve mode emits a named re-export (`export { make as App }`) so detection works automatically
+
+Watch `rescript-lang/rescript-compiler` JSX preserve mode issues and `reactwg/react-compiler` discussions.
