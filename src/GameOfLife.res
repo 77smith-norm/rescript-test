@@ -56,25 +56,6 @@ let count_live_neighbors = (grid, rows, cols, r, c) => {
   count.contents
 }
 
-let compute_next_gen = (grid, rows, cols) => {
-  let next = make_grid(rows, cols)
-  let r = ref(0)
-  while r.contents < rows {
-    let c = ref(0)
-    while c.contents < cols {
-      let n = count_live_neighbors(grid, rows, cols, r.contents, c.contents)
-      let new_cell = switch get_cell(grid, cols, r.contents, c.contents) {
-        | Alive => if n < 2 || n > 3 { Dead } else { Alive }
-        | Dead  => if n == 3 { Alive } else { Dead }
-      }
-      set_cell(next, cols, r.contents, c.contents, new_cell)
-      c.contents = c.contents + 1
-    }
-    r.contents = r.contents + 1
-  }
-  next
-}
-
 let compute_next_gen_rule = (grid, rows, cols, rule: rule) => {
   let next = make_grid(rows, cols)
   let r = ref(0)
@@ -97,6 +78,9 @@ let compute_next_gen_rule = (grid, rows, cols, rule: rule) => {
   }
   next
 }
+
+let compute_next_gen = (grid, rows, cols) =>
+  compute_next_gen_rule(grid, rows, cols, conway)
 
 type preset = Glider | Blinker | Pulsar | RPentomino
 
@@ -457,16 +441,8 @@ let decode_rle = (s: string): option<(array<cell>, int, int)> => {
 }
 
 // URL state encoding/decoding
-let encode_url_state = (grid: array<cell>, rows: int, cols: int): string => {
-  let bitStr = Array.reduce(grid, "", (acc, cell) =>
-    acc ++ switch cell {
-      | Alive => "1"
-      | Dead => "0"
-    }
-  )
-  let encoded = btoa(bitStr)
-  Int.toString(rows) ++ ":" ++ Int.toString(cols) ++ ":" ++ encoded
-}
+let encode_url_state = (grid: array<cell>, rows: int, cols: int): string =>
+  Int.toString(rows) ++ ":" ++ Int.toString(cols) ++ ":" ++ btoa(serialize_grid(grid))
 
 let safeAtob = (s: string): option<string> => {
   try { Some(atob(s)) } catch { | _ => None }
@@ -475,18 +451,12 @@ let safeAtob = (s: string): option<string> => {
 let decode_url_state = (s: string): option<(array<cell>, int, int)> => {
   let parts = String.split(s, ":")
   switch parts {
-  | [rowStr, colStr, b64] if Array.length(parts) == 3 =>
+  | [rowStr, colStr, b64] =>
     switch (Int.fromString(rowStr), Int.fromString(colStr)) {
     | (Some(rows), Some(cols)) if rows > 0 && cols > 0 =>
       switch safeAtob(b64) {
       | Some(decoded) if String.length(decoded) == rows * cols =>
-        let grid = Array.fromInitializer(~length=rows * cols, i =>
-          switch String.get(decoded, i) {
-          | Some("1") => Alive
-          | _ => Dead
-          }
-        )
-        Some((grid, rows, cols))
+        Some((deserialize_grid(decoded), rows, cols))
       | _ => None
       }
     | _ => None
